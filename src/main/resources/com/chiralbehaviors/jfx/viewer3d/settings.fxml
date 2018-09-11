@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <?scenebuilder-stylesheet viewer.css?>
 <!--suppress JavaFxUnresolvedStyleClassReference -->
 
-<Accordion fx:id="settings" minWidth="0.0" prefHeight="798.0" prefWidth="279.0" xmlns:fx="http://javafx.com/fxml" fx:controller="com.hellblazer.delaunay.jfx.SettingsController">
+<Accordion fx:id="settings" minWidth="0.0" prefHeight="798.0" prefWidth="279.0" xmlns:fx="http://javafx.com/fxml" fx:controller="com.chiralbehaviors.jfx.viewer3d.SettingsController">
   <expandedPane>
     <TitledPane fx:id="x5" animated="false" expanded="true" text="Hierarchy">
       <content>

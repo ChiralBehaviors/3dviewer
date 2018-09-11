@@ -31,8 +31,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
-<?import com.hellblazer.delaunay.jfx.*?>
-<?import com.hellblazer.delaunay.jfx.FourWayNavControl?>
+<?import com.chiralbehaviors.jfx.viewer3d.*?>
+<?import com.chiralbehaviors.jfx.viewer3d.FourWayNavControl?>
 <?import java.lang.*?>
 <?import javafx.geometry.*?>
 <?import javafx.geometry.Insets?>
@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <?import javafx.scene.layout.VBox?>
 <?scenebuilder-classpath-element ../../../../../../../build/classes?>
 
-<VBox id="controller" alignment="CENTER" spacing="10.0" xmlns:fx="http://javafx.com/fxml" fx:controller="com.hellblazer.delaunay.jfx.NavigationController">
+<VBox id="controller" alignment="CENTER" spacing="10.0" xmlns:fx="http://javafx.com/fxml" fx:controller="com.chiralbehaviors.jfx.viewer3d.NavigationController">
   <children>
     <!--<FourWayNavControl fx:id="eyeNav" />-->
     <!--<FourWayNavControl fx:id="camNav" />-->

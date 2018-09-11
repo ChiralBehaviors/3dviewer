@@ -40,9 +40,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.paint.*?>
-<?import com.hellblazer.delaunay.jfx.*?>
+<?import com.chiralbehaviors.jfx.viewer3d.*?>
 
-<VBox id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns:fx="http://javafx.com/fxml" fx:controller="com.hellblazer.delaunay.jfx.MainController">
+<VBox id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns:fx="http://javafx.com/fxml" fx:controller="com.chiralbehaviors.jfx.viewer3d.MainController">
   <ToolBar>
     <items>
       <SplitMenuButton fx:id="openMenuBtn" mnemonicParsing="false" onAction="#open" text="Open...">
