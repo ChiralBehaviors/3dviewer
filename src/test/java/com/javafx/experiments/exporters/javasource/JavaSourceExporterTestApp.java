@@ -29,58 +29,40 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
+package com.javafx.experiments.exporters.javasource;
 
 import java.io.File;
-import java.util.List;
-
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
+import javafx.application.Platform;
 import javafx.stage.Stage;
+import com.javafx.experiments.importers.Optimizer;
+import com.javafx.experiments.importers.maya.MayaImporter;
 
 /**
- * JavaFX 3D Viewer Application
+ * Simple Test application to load 3D file and export as Java Class
  */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+public class JavaSourceExporterTestApp extends Application {
+    @Override public void start(Stage primaryStage) throws Exception {
+        String URL = "file:///Users/jpotts/Projects/jfx-bluray-8.0/apps/bluray/BluRay/src/bluray/botmenu/dukeBot.ma";
+
+        MayaImporter importer = new MayaImporter();
+        importer.load(URL, true);
+
+        Optimizer optimizer = new Optimizer(importer.getTimeline(),importer.getRoot());
+        optimizer.optimize();
+
+        File out = new File("/Users/jpotts/Projects/jfx-bluray-8.0/apps/bluray/BluRay/src/bluray/botmenu/GreenBot.java");
+        JavaSourceExporter javaSourceExporter = new JavaSourceExporter(
+                URL.substring(0,URL.lastIndexOf('/')),
+                importer.getRoot(), importer.getTimeline(),
+                "bluray.botmenu",
+                out);
+        javaSourceExporter.export();
+
+        Platform.exit();
+    }
 
     public static void main(String[] args) {
         launch(args);
-    }
-
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
-    }
-
-    @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
-    }
-
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
     }
 }

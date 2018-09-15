@@ -29,58 +29,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
 
-import java.io.File;
-import java.util.List;
+package com.javafx.experiments.importers.maya;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
-
-    public static void main(String[] args) {
-        launch(args);
-    }
-
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
-    }
+public abstract class MObject {
+    final String name;
+    MEnv         env;
 
     @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
+    public String toString() {
+        return super.toString() + " MObject.name: " + name;
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+    public MObject(MEnv env, String name) {
+        this.env = env;
+        this.name = name;
     }
+
+    public String getName() {
+        return name;
+    }
+
+    public MEnv getEnv() {
+        return env;
+    }
+
+    public abstract void accept(MEnv.Visitor visitor);
 }

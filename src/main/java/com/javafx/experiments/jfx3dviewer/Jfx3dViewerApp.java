@@ -29,13 +29,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
+package com.javafx.experiments.jfx3dviewer;
 
 import java.io.File;
 import java.util.List;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -43,24 +44,18 @@ import javafx.stage.Stage;
  * JavaFX 3D Viewer Application
  */
 public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+    public static final String  FILE_URL_PROPERTY = "fileUrl";
+    private static ContentModel contentModel;
+    private SessionManager      sessionManager;
 
-    public static void main(String[] args) {
-        launch(args);
-    }
-
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
+    public static ContentModel getContentModel() {
         return contentModel;
     }
 
     @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
+    public void start(Stage stage) throws Exception {
+        sessionManager = SessionManager.createSessionManager("Jfx3dViewerApp");
         sessionManager.loadSession();
-        contentModel = createContentModel();
 
         List<String> args = getParameters().getRaw();
         if (!args.isEmpty()) {
@@ -70,17 +65,18 @@ public class Jfx3dViewerApp extends Application {
                                                             .toURL()
                                                             .toString());
         }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
+        contentModel = new ContentModel();
+        Scene scene = new Scene(FXMLLoader.<Parent> load(Jfx3dViewerApp.class.getResource("main.fxml")),
+                                1024, 600);
         stage.setScene(scene);
         stage.show();
 
         stage.setOnCloseRequest(event -> sessionManager.saveSession());
+
+        //        org.scenicview.ScenicView.show(contentModel.getSubScene().getRoot());
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+    public static void main(String[] args) {
+        launch(args);
     }
 }

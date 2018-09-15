@@ -29,58 +29,39 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
 
-import java.io.File;
+package com.javafx.experiments.importers.maya.values;
+
+import java.util.Iterator;
 import java.util.List;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import com.javafx.experiments.importers.maya.MEnv;
+import com.javafx.experiments.importers.maya.types.MDataType;
 
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+public interface MData {
+    public MEnv getEnv();
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    public MDataType getType();
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
+    public void setSize(int size);
 
-    public ContentModel getContentModel() {
-        return contentModel;
-    }
+    public void parse(String field, List<String> values);
 
-    @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
+    public void parse(List<String> values);
 
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
+    public void parse(Iterator<String> iter);
 
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
-    }
+    /** Get the data associated with the given string path. */
+    public MData getData(String path);
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
-    }
+    /**
+     * Field access for those values which support it, such as compound values.
+     */
+    public MData getFieldData(String name);
+
+    /** Index access for those values which suport it, such as array values. */
+    public MData getData(int index);
+
+    /** Slice access for those values which support it, such as array values. */
+    public MData getData(int start, int end);
 }

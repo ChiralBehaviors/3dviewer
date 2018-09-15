@@ -29,58 +29,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
 
-import java.io.File;
+package com.javafx.experiments.importers.maya.values.impl;
+
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import com.javafx.experiments.importers.maya.types.MComponentListType;
+import com.javafx.experiments.importers.maya.values.MComponentList;
 
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+public class MComponentListImpl extends MDataImpl implements MComponentList {
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    private List<Component> components = new ArrayList<Component>();
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
+    public MComponentListImpl(MComponentListType type) {
+        super(type);
     }
 
     @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
+    public void set(List<Component> value) {
+        components = value;
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+    @Override
+    public List<Component> get() {
+        return components;
+    }
+
+    @Override
+    public void parse(Iterator<String> values) {
+        try {
+            int num = Integer.parseInt(values.next());
+            for (int i = 0; i < num; i++) {
+                components.add(Component.parse(values.next()));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuffer res = new StringBuffer();
+        res.append(getType().getName());
+        for (Component c : components) {
+            res.append(" ");
+            res.append(c);
+        }
+        return res.toString();
     }
 }

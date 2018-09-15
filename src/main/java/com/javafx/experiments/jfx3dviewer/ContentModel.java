@@ -29,7 +29,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
+package com.javafx.experiments.jfx3dviewer;
+
+import com.javafx.experiments.shape3d.PolygonMeshView;
+import com.javafx.experiments.shape3d.SubdivisionMesh;
 
 import javafx.animation.Timeline;
 import javafx.beans.property.ObjectProperty;
@@ -93,6 +96,9 @@ public class ContentModel {
     private final Xform                          cameraXform2      = new Xform();
     private final Xform                          cameraXform3      = new Xform();
     private final double                         cameraDistance    = 200;
+    @SuppressWarnings({ "unused"})
+    private double                               dragStartX, dragStartY,
+            dragStartRotateX, dragStartRotateY;
     private ObjectProperty<Node>                 content           = new SimpleObjectProperty<>();
     private AutoScalingGroup                     autoScalingGroup  = new AutoScalingGroup(2);
     private Box                                  xAxis, yAxis, zAxis;
@@ -221,6 +227,8 @@ public class ContentModel {
                                                                 };
     private boolean                         wireframe           = false;
     private int                             subdivisionLevel    = 0;
+    private SubdivisionMesh.BoundaryMode    boundaryMode        = SubdivisionMesh.BoundaryMode.CREASE_EDGES;
+    private SubdivisionMesh.MapBorderMode   mapBorderMode       = SubdivisionMesh.MapBorderMode.NOT_SMOOTH;
 
     private double                          mousePosX;
     private double                          mousePosY;
@@ -239,14 +247,16 @@ public class ContentModel {
                                                                         yFlip = -1.0;
                                                                     }
                                                                     if (event.getEventType() == MouseEvent.MOUSE_PRESSED) {
+                                                                        dragStartX = event.getSceneX();
+                                                                        dragStartY = event.getSceneY();
+                                                                        dragStartRotateX = cameraXRotate.getAngle();
+                                                                        dragStartRotateY = cameraYRotate.getAngle();
                                                                         mousePosX = event.getSceneX();
                                                                         mousePosY = event.getSceneY();
                                                                         mouseOldX = event.getSceneX();
                                                                         mouseOldY = event.getSceneY();
 
                                                                     } else if (event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
-                                                                        event.getSceneX();
-                                                                        event.getSceneY();
 
                                                                         double modifier = 1.0;
                                                                         double modifierFactor = 0.3;
@@ -263,13 +273,15 @@ public class ContentModel {
                                                                         mousePosX = event.getSceneX();
                                                                         mousePosY = event.getSceneY();
                                                                         mouseDeltaX = (mousePosX
-                                                                                       - mouseOldX);                                                                                                    //*DELTA_MULTIPLIER;
+                                                                                       - mouseOldX);                                                                                                  //*DELTA_MULTIPLIER;
                                                                         mouseDeltaY = (mousePosY
-                                                                                       - mouseOldY);                                                                                                    //*DELTA_MULTIPLIER;
+                                                                                       - mouseOldY);                                                                                                  //*DELTA_MULTIPLIER;
 
                                                                         double flip = -1.0;
 
-                                                                        boolean alt = (event.isAltDown());                                                                                              // For now, don't require ALT to be pressed
+                                                                        @SuppressWarnings("unused")
+                                                                        boolean alt = (true
+                                                                                       || event.isAltDown());                                                                                         // For now, don't require ALT to be pressed
                                                                         if (alt
                                                                             && (event.isMiddleButtonDown()
                                                                                 || (event.isPrimaryButtonDown()
@@ -279,13 +291,13 @@ public class ContentModel {
                                                                                                   * mouseDeltaX
                                                                                                   * modifierFactor
                                                                                                   * modifier
-                                                                                                  * 0.3);                                                                                               // -
+                                                                                                  * 0.3);                                                                                             // -
                                                                             cameraXform2.t.setY(cameraXform2.t.getY()
                                                                                                 + yFlip
                                                                                                   * mouseDeltaY
                                                                                                   * modifierFactor
                                                                                                   * modifier
-                                                                                                  * 0.3);                                                                                               // -
+                                                                                                  * 0.3);                                                                                             // -
                                                                         } else if (alt
                                                                                    && event.isPrimaryButtonDown()) {
                                                                             cameraXform.ry.setAngle(cameraXform.ry.getAngle()
@@ -293,13 +305,13 @@ public class ContentModel {
                                                                                                       * mouseDeltaX
                                                                                                       * modifierFactor
                                                                                                       * modifier
-                                                                                                      * 2.0);                                                                                           // +
+                                                                                                      * 2.0);                                                                                         // +
                                                                             cameraXform.rx.setAngle(cameraXform.rx.getAngle()
                                                                                                     + flip
                                                                                                       * mouseDeltaY
                                                                                                       * modifierFactor
                                                                                                       * modifier
-                                                                                                      * 2.0);                                                                                           // -
+                                                                                                      * 2.0);                                                                                         // -
                                                                         } else if (alt
                                                                                    && event.isSecondaryButtonDown()) {
                                                                             double z = cameraPosition.getZ();
@@ -320,13 +332,13 @@ public class ContentModel {
                                                                     }
                                                                 };
     private final EventHandler<ScrollEvent> scrollEventHandler  = event -> {
-                                                                    if (event.getTouchCount() > 0) {                                                                                                    // touch pad scroll
+                                                                    if (event.getTouchCount() > 0) {                                                                                                  // touch pad scroll
                                                                         cameraXform2.t.setX(cameraXform2.t.getX()
                                                                                             - (0.01
-                                                                                               * event.getDeltaX()));                                                                                   // -
+                                                                                               * event.getDeltaX()));                                                                                 // -
                                                                         cameraXform2.t.setY(cameraXform2.t.getY()
                                                                                             + (0.01
-                                                                                               * event.getDeltaY()));                                                                                   // -
+                                                                                               * event.getDeltaY()));                                                                                 // -
                                                                     } else {
                                                                         double z = cameraPosition.getZ()
                                                                                    - (event.getDeltaY()
@@ -352,14 +364,14 @@ public class ContentModel {
                                                                     }
                                                                 };
     private final EventHandler<KeyEvent>    keyEventHandler     = event -> {
-                                                                                                                                                                                                        /*
-                                                                                                                                                                                                        if (!Double.isNaN(event.getZoomFactor()) && event.getZoomFactor() > 0.8 && event.getZoomFactor() < 1.2) {
-                                                                                                                                                                                                            double z = cameraPosition.getZ()/event.getZoomFactor();
-                                                                                                                                                                                                            z = Math.max(z,-1000);
-                                                                                                                                                                                                            z = Math.min(z,0);
-                                                                                                                                                                                                            cameraPosition.setZ(z);
-                                                                                                                                                                                                        }
-                                                                                                                                                                                                        */
+                                                                                                                                                                                                      /*
+                                                                                                                                                                                                      if (!Double.isNaN(event.getZoomFactor()) && event.getZoomFactor() > 0.8 && event.getZoomFactor() < 1.2) {
+                                                                                                                                                                                                          double z = cameraPosition.getZ()/event.getZoomFactor();
+                                                                                                                                                                                                          z = Math.max(z,-1000);
+                                                                                                                                                                                                          z = Math.min(z,0);
+                                                                                                                                                                                                          cameraPosition.setZ(z);
+                                                                                                                                                                                                      }
+                                                                                                                                                                                                      */
                                                                     System.out.println("KeyEvent ...");
                                                                     Timeline timeline = getTimeline();
                                                                     Duration currentTime;
@@ -390,18 +402,18 @@ public class ContentModel {
                                                                             cameraXform2.t.setX(0.0);
                                                                             cameraXform2.t.setY(0.0);
                                                                             break;
-                                                                                                                                                                                                        /*
-                                                                                                                                                                                                        case SPACE:
-                                                                                                                                                                                                            if (timelinePlaying) {
-                                                                                                                                                                                                                timeline.pause();
-                                                                                                                                                                                                                timelinePlaying = false;
-                                                                                                                                                                                                            }
-                                                                                                                                                                                                            else {
-                                                                                                                                                                                                                timeline.play();
-                                                                                                                                                                                                                timelinePlaying = true;
-                                                                                                                                                                                                            }
-                                                                                                                                                                                                            break;
-                                                                                                                                                                                                        */
+                                                                                                                                                                                                      /*
+                                                                                                                                                                                                      case SPACE:
+                                                                                                                                                                                                          if (timelinePlaying) {
+                                                                                                                                                                                                              timeline.pause();
+                                                                                                                                                                                                              timelinePlaying = false;
+                                                                                                                                                                                                          }
+                                                                                                                                                                                                          else {
+                                                                                                                                                                                                              timeline.play();
+                                                                                                                                                                                                              timelinePlaying = true;
+                                                                                                                                                                                                          }
+                                                                                                                                                                                                          break;
+                                                                                                                                                                                                      */
                                                                         case UP:
                                                                             if (event.isControlDown()
                                                                                 && event.isShiftDown()) {
@@ -499,7 +511,7 @@ public class ContentModel {
                                                                                        && event.isShiftDown()) {
                                                                                 cameraXform.ry.setAngle(cameraXform.ry.getAngle()
                                                                                                         + 10.0
-                                                                                                          * ALT_MULTIPLIER);                                                                            // -
+                                                                                                          * ALT_MULTIPLIER);                                                                          // -
                                                                             } else if (event.isControlDown()) {
                                                                                 cameraXform2.t.setX(cameraXform2.t.getX()
                                                                                                     - 1.0
@@ -514,7 +526,7 @@ public class ContentModel {
                                                                             } else if (event.isAltDown()) {
                                                                                 cameraXform.ry.setAngle(cameraXform.ry.getAngle()
                                                                                                         + 2.0
-                                                                                                          * ALT_MULTIPLIER);                                                                            // -
+                                                                                                          * ALT_MULTIPLIER);                                                                          // -
                                                                             } else {
                                                                                 currentTime = timeline.getCurrentTime();
                                                                                 timeline.jumpTo(Frame.frame(Frame.toFrame(currentTime)
@@ -529,7 +541,7 @@ public class ContentModel {
 
                                                                 };
 
-    public ContentModel(SessionManager sessionManager) {
+    public ContentModel() {
         // CAMERA
         camera.setNearClip(1.0); // TODO: Workaround as per RT-31255
         camera.setFarClip(10000.0); // TODO: Workaround as per RT-31255
@@ -553,6 +565,7 @@ public class ContentModel {
         root3D.getChildren()
               .add(autoScalingGroup);
 
+        SessionManager sessionManager = SessionManager.getSessionManager();
         sessionManager.bind(cameraLookXRotate.angleProperty(),
                             "cameraLookXRotate");
         sessionManager.bind(cameraLookZRotate.angleProperty(),
@@ -718,6 +731,8 @@ public class ContentModel {
             setWireFrame(newContent, wireframe);
             // TODO mesh is updated each time these are called even if no rendering needs to happen
             setSubdivisionLevel(newContent, subdivisionLevel);
+            setBoundaryMode(newContent, boundaryMode);
+            setMapBorderMode(newContent, mapBorderMode);
         });
     }
 
@@ -779,12 +794,55 @@ public class ContentModel {
     }
 
     private void setWireFrame(Node node, boolean wireframe) {
-        if (node instanceof MeshView) {
+        if (node instanceof PolygonMeshView) {
+            ((PolygonMeshView) node).setDrawMode(wireframe ? DrawMode.LINE
+                                                           : DrawMode.FILL);
+        } else if (node instanceof MeshView) {
             ((MeshView) node).setDrawMode(wireframe ? DrawMode.LINE
                                                     : DrawMode.FILL);
         } else if (node instanceof Parent) {
             for (Node child : ((Parent) node).getChildrenUnmodifiable()) {
                 setWireFrame(child, wireframe);
+            }
+        }
+    }
+
+    public SubdivisionMesh.BoundaryMode getBoundaryMode() {
+        return boundaryMode;
+    }
+
+    public void setBoundaryMode(SubdivisionMesh.BoundaryMode boundaryMode) {
+        this.boundaryMode = boundaryMode;
+        setBoundaryMode(root3D, boundaryMode);
+    }
+
+    private void setBoundaryMode(Node node,
+                                 SubdivisionMesh.BoundaryMode boundaryMode) {
+        if (node instanceof PolygonMeshView) {
+            ((PolygonMeshView) node).setBoundaryMode(boundaryMode);
+        } else if (node instanceof Parent) {
+            for (Node child : ((Parent) node).getChildrenUnmodifiable()) {
+                setBoundaryMode(child, boundaryMode);
+            }
+        }
+    }
+
+    public SubdivisionMesh.MapBorderMode getMapBorderMode() {
+        return mapBorderMode;
+    }
+
+    public void setMapBorderMode(SubdivisionMesh.MapBorderMode mapBorderMode) {
+        this.mapBorderMode = mapBorderMode;
+        setMapBorderMode(root3D, mapBorderMode);
+    }
+
+    private void setMapBorderMode(Node node,
+                                  SubdivisionMesh.MapBorderMode mapBorderMode) {
+        if (node instanceof PolygonMeshView) {
+            ((PolygonMeshView) node).setMapBorderMode(mapBorderMode);
+        } else if (node instanceof Parent) {
+            for (Node child : ((Parent) node).getChildrenUnmodifiable()) {
+                setMapBorderMode(child, mapBorderMode);
             }
         }
     }
@@ -799,7 +857,9 @@ public class ContentModel {
     }
 
     private void setSubdivisionLevel(Node node, int subdivisionLevel) {
-        if (node instanceof Parent) {
+        if (node instanceof PolygonMeshView) {
+            ((PolygonMeshView) node).setSubdivisionLevel(subdivisionLevel);
+        } else if (node instanceof Parent) {
             for (Node child : ((Parent) node).getChildrenUnmodifiable()) {
                 setSubdivisionLevel(child, subdivisionLevel);
             }

@@ -29,58 +29,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
+package com.javafx.experiments.shape3d.symbolic;
 
-import java.io.File;
-import java.util.List;
-
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import com.javafx.experiments.shape3d.PolygonMesh;
 
 /**
- * JavaFX 3D Viewer Application
+ * Polygon mesh where the points are symbolic. That is, the values of the points
+ * depend on other variables and they can be updated appropriately.
  */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+public class SymbolicPolygonMesh {
+    public SymbolicPointArray points;
+    public float[]            texCoords;
+    public int[][]            faces;
+    public int[]              faceSmoothingGroups;
+    private int               numEdgesInFaces = -1;
 
-    public static void main(String[] args) {
-        launch(args);
+    public SymbolicPolygonMesh(SymbolicPointArray points, float[] texCoords,
+                               int[][] faces, int[] faceSmoothingGroups) {
+        this.points = points;
+        this.texCoords = texCoords;
+        this.faces = faces;
+        this.faceSmoothingGroups = faceSmoothingGroups;
     }
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
+    public SymbolicPolygonMesh(PolygonMesh mesh) {
+        this.points = new OriginalPointArray(mesh);
+        this.texCoords = mesh.getTexCoords()
+                             .toArray(this.texCoords);
+        this.faces = mesh.faces;
+        this.faceSmoothingGroups = mesh.getFaceSmoothingGroups()
+                                       .toArray(null);
     }
 
-    @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
+    public int getNumEdgesInFaces() {
+        if (numEdgesInFaces == -1) {
+            numEdgesInFaces = 0;
+            for (int[] face : faces) {
+                numEdgesInFaces += face.length;
+            }
+            numEdgesInFaces /= 2;
         }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
-    }
-
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+        return numEdgesInFaces;
     }
 }

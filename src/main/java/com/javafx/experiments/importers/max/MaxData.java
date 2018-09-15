@@ -29,58 +29,68 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
+package com.javafx.experiments.importers.max;
 
-import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import javafx.geometry.Point3D;
 
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
-
-    public static void main(String[] args) {
-        launch(args);
+/** Max file format data objects */
+public class MaxData {
+    public static class MappingChannel {
+        public int   ntPoints;
+        public float tPoints[];
+        public int   faces[];  // t0 t1 t2
     }
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
+    public static class Mesh {
+        public String         name;
+        public int            nPoints;
+        public float          points[]; // x,y,z, x,y,z, ....
+        public int            nFaces;
+        public int            faces[];  // [[p0,p1,p2, smoothing]...]
+        public MappingChannel mapping[];
     }
 
-    @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
+    public static class NodeTM {
+        public String  name;
+        public Point3D pos;
+        public Point3D tm[] = new Point3D[3];
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+    public static class Material {
+        public String  name;
+        public String  diffuseMap;
+        public Point3D ambientColor;
+        public Point3D diffuseColor;
+        public Point3D specularColor;
     }
+
+    public static class Node {
+        public String     name;
+        public NodeTM     nodeTM;
+        public Node       parent;
+        public List<Node> children;
+    }
+
+    public static class LightNode extends Node {
+        public float intensity;
+        public float r, g, b;
+    }
+
+    public static class CameraNode extends Node {
+        public NodeTM target;
+        public float  near, far, fov;
+    }
+
+    public static class GeomNode extends Node {
+        public Mesh mesh;
+        public int  materialRef;
+    }
+
+    public Material          materials[];
+    public Map<String, Node> nodes = new HashMap<>();
+    public Map<String, Node> roots = new HashMap<>();
 }

@@ -29,58 +29,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
 
-import java.io.File;
+package com.javafx.experiments.importers.maya.values.impl;
+
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.TreeMap;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import com.javafx.experiments.importers.maya.types.MAttributeAliasType;
+import com.javafx.experiments.importers.maya.values.MAttributeAlias;
 
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+public class MAttributeAliasImpl extends MDataImpl implements MAttributeAlias {
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    Map<String, String> map = new TreeMap<String, String>();
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
+    public MAttributeAliasImpl(MAttributeAliasType type) {
+        super(type);
     }
 
     @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
+    public Map<String, String> getMapping() {
+        return map;
+    }
 
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
+    @Override
+    public void parse(Iterator<String> values) {
+        List<String> list = new ArrayList<String>();
+        while (values.hasNext()) {
+            String str = values.next();
+            int start = str.indexOf("\"");
+            if (start < 0) {
+                System.out.println("parse error at: " + str);
+                continue;
+            }
+            str = str.substring(start);
+            StringTokenizer izer = new StringTokenizer(str, ",");
+            while (izer.hasMoreTokens()) {
+                String tok = izer.nextToken();
+                tok = tok.substring(1, tok.length() - 1);
+                list.add(tok);
+            }
         }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
+        for (int i = 0; i < list.size(); i += 2) {
+            map.put(list.get(i), list.get(i + 1));
+        }
+        System.out.println("parsed aal: " + map);
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
-    }
 }

@@ -29,58 +29,41 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
 
-import java.io.File;
-import java.util.List;
+package com.javafx.experiments.importers.maya.values.impl;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import java.util.Iterator;
 
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+import com.javafx.experiments.importers.maya.types.MStringType;
+import com.javafx.experiments.importers.maya.values.MString;
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+public class MStringImpl extends MDataImpl implements MString {
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
+    private String value;
 
-    public ContentModel getContentModel() {
-        return contentModel;
+    public MStringImpl(MStringType type) {
+        super(type);
     }
 
     @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
+    public void set(String str) {
+        value = str;
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+    @Override
+    public String get() {
+        return value;
+    }
+
+    @Override
+    public void parse(Iterator<String> values) {
+        value = values.next();
+    }
+
+    @Override
+    public String toString() {
+        String result = getType().getName();
+        result += " " + value;
+        return result;
     }
 }

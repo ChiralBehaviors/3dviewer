@@ -29,58 +29,47 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.chiralbehaviors.jfx.viewer3d;
+package com.javafx.experiments.jfx3dviewer;
 
-import java.io.File;
-import java.util.List;
+import javafx.util.Duration;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+public class Frame extends Duration {
 
-/**
- * JavaFX 3D Viewer Application
- */
-public class Jfx3dViewerApp extends Application {
-    public static final String FILE_URL_PROPERTY = "fileUrl";
+    private static final long serialVersionUID = 1L;
 
-    public static void main(String[] args) {
-        launch(args);
+    static double FPS     = 24.0;
+
+    // Experimentally trying to land the frames on whole frame values
+    // Duration is still double, but internally, in Animation/Timeline,
+    // the time is discrete.  6000 units per second.
+    // Without this EPSILON, the frames might not land on whole frame values.
+    // 0.000001f seems to work for now
+    // 0.0000001f was too small on a trial run
+    static double EPSILON = 0.000001;
+
+    // static double EPSILON = 0.0;
+
+    Frame(double millis) {
+        super(millis);
     }
 
-    protected ContentModel   contentModel;
-    protected SessionManager sessionManager;
-
-    public ContentModel getContentModel() {
-        return contentModel;
+    public static Duration frame(int frame) {
+        return Duration.seconds(frame / FPS + EPSILON);
     }
 
-    @Override
-    public final void start(Stage stage) throws Exception {
-        sessionManager = new SessionManager("Jfx3dViewerApp");
-        sessionManager.loadSession();
-        contentModel = createContentModel();
-
-        List<String> args = getParameters().getRaw();
-        if (!args.isEmpty()) {
-            sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
-        }
-        FXMLLoader loader = new FXMLLoader(Jfx3dViewerApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(loader.load(), 1024, 600);
-        MainController main = loader.<MainController> getController();
-        main.initialize(contentModel, sessionManager);
-        stage.setScene(scene);
-        stage.show();
-
-        stage.setOnCloseRequest(event -> sessionManager.saveSession());
+    public static Duration frame(long frame) {
+        return Duration.seconds(frame / FPS + EPSILON);
     }
 
-    protected ContentModel createContentModel() {
-        return new ContentModel(sessionManager);
+    public static long toFrame(Duration tion) {
+        return Math.round(tion.toSeconds() * FPS);
+    }
+
+    public static int toFrameAsInt(Duration tion) {
+        return (int) Math.round(tion.toSeconds() * FPS);
+    }
+
+    public static double toFrameAsDouble(Duration tion) {
+        return (tion.toSeconds() * FPS);
     }
 }
