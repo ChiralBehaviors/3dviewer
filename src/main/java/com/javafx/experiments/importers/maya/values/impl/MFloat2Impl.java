@@ -41,8 +41,6 @@ import com.javafx.experiments.importers.maya.values.MFloat2;
 
 public class MFloat2Impl extends MDataImpl implements MFloat2 {
 
-    private float[] data = new float[2];
-
     class MFloat2Component extends MDataImpl implements MFloat {
         private int index;
 
@@ -50,11 +48,6 @@ public class MFloat2Impl extends MDataImpl implements MFloat2 {
             super(MFloat2Impl.this.getEnv()
                                   .findDataType("float"));
             this.index = index;
-        }
-
-        @Override
-        public void set(float value) {
-            data[index] = value;
         }
 
         @Override
@@ -66,16 +59,17 @@ public class MFloat2Impl extends MDataImpl implements MFloat2 {
         public void parse(Iterator<String> elements) {
             data[index] = Float.parseFloat(elements.next());
         }
+
+        @Override
+        public void set(float value) {
+            data[index] = value;
+        }
     }
+
+    private float[] data = new float[2];
 
     public MFloat2Impl(MFloat2Type type) {
         super(type);
-    }
-
-    @Override
-    public void set(float x, float y) {
-        data[0] = x;
-        data[1] = y;
     }
 
     @Override
@@ -84,25 +78,8 @@ public class MFloat2Impl extends MDataImpl implements MFloat2 {
     }
 
     @Override
-    public float getX() {
-        return data[0];
-    }
-
-    @Override
-    public float getY() {
-        return data[1];
-    }
-
-    @Override
     public float get(int index) {
         return data[index];
-    }
-
-    @Override
-    public void parse(Iterator<String> elements) {
-        for (int i = 0; i < 2; i++) {
-            data[i] = Float.parseFloat(elements.next());
-        }
     }
 
     @Override
@@ -118,5 +95,28 @@ public class MFloat2Impl extends MDataImpl implements MFloat2 {
             return getData(1);
         }
         return super.getData(name);
+    }
+
+    @Override
+    public float getX() {
+        return data[0];
+    }
+
+    @Override
+    public float getY() {
+        return data[1];
+    }
+
+    @Override
+    public void parse(Iterator<String> elements) {
+        for (int i = 0; i < 2; i++) {
+            data[i] = Float.parseFloat(elements.next());
+        }
+    }
+
+    @Override
+    public void set(float x, float y) {
+        data[0] = x;
+        data[1] = y;
     }
 }

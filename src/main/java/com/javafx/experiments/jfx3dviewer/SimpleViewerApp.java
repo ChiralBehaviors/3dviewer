@@ -57,18 +57,23 @@ import javafx.util.Duration;
  * JavaFX 3D Viewer Application
  */
 public class SimpleViewerApp extends Application {
-    private final Group             root3D            = new Group();
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    private AutoScalingGroup        autoScalingGroup  = new AutoScalingGroup(2);
     private final PerspectiveCamera camera            = new PerspectiveCamera(true);
-    private final Rotate            cameraXRotate     = new Rotate(-20, 0, 0, 0,
-                                                                   Rotate.X_AXIS);
-    private final Rotate            cameraYRotate     = new Rotate(-20, 0, 0, 0,
-                                                                   Rotate.Y_AXIS);
     private final Rotate            cameraLookXRotate = new Rotate(0, 0, 0, 0,
                                                                    Rotate.X_AXIS);
     private final Rotate            cameraLookZRotate = new Rotate(0, 0, 0, 0,
                                                                    Rotate.Z_AXIS);
     private final Translate         cameraPosition    = new Translate(0, 0, -7);
-    private AutoScalingGroup        autoScalingGroup  = new AutoScalingGroup(2);
+    private final Rotate            cameraXRotate     = new Rotate(-20, 0, 0, 0,
+                                                                   Rotate.X_AXIS);
+    private final Rotate            cameraYRotate     = new Rotate(-20, 0, 0, 0,
+                                                                   Rotate.Y_AXIS);
+
+    private final Group             root3D            = new Group();
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -122,9 +127,5 @@ public class SimpleViewerApp extends Application {
         //                System.out.println("fps = " + PerformanceTracker.getSceneTracker(scene).getInstantFPS())));
         //        fpsTimeline.setCycleCount(Timeline.INDEFINITE);
         //        fpsTimeline.play();
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 }

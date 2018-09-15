@@ -33,8 +33,6 @@ package com.javafx.experiments.jfx3dviewer;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ResourceBundle;
@@ -79,30 +77,71 @@ import javafx.util.Pair;
  * Controller class for main fxml file.
  */
 public class MainController implements Initializable {
-    public SplitMenuButton     openMenuBtn;
-    public Label               status;
-    public SplitPane           splitPane;
-    public ToggleButton        settingsBtn;
-    public CheckMenuItem       loadAsPolygonsCheckBox;
-    public CheckMenuItem       optimizeCheckBox;
-    public Button              startBtn;
-    public Button              rwBtn;
-    public ToggleButton        playBtn;
-    public Button              ffBtn;
     public Button              endBtn;
+    public Button              ffBtn;
+    public CheckMenuItem       loadAsPolygonsCheckBox;
     public ToggleButton        loopBtn;
+    public SplitMenuButton     openMenuBtn;
+    public CheckMenuItem       optimizeCheckBox;
+    public ToggleButton        playBtn;
+    public Button              rwBtn;
+    public ToggleButton        settingsBtn;
+    public SplitPane           splitPane;
+    public Button              startBtn;
+    public Label               status;
     public TimelineDisplay     timelineDisplay;
-    private Accordion          settingsPanel;
-    private double             settingsLastWidth = -1;
-    private int                nodeCount         = 0;
-    private int                meshCount         = 0;
-    private int                triangleCount     = 0;
     private final ContentModel contentModel      = Jfx3dViewerApp.getContentModel();
     private File               loadedPath;
     private String             loadedURL;
+    private int                meshCount         = 0;
+    private int                nodeCount         = 0;
+    private SessionManager     sessionManager    = SessionManager.getSessionManager();
+    private double             settingsLastWidth = -1;
+    private Accordion          settingsPanel;
     private String[]           supportedFormatRegex;
     private TimelineController timelineController;
-    private SessionManager     sessionManager    = SessionManager.getSessionManager();
+    private int                triangleCount     = 0;
+
+    public void export(ActionEvent event) {
+        FileChooser chooser = new FileChooser();
+        if (loadedPath != null) {
+            chooser.setInitialDirectory(loadedPath.getAbsoluteFile()
+                                                  .getParentFile());
+        }
+        chooser.getExtensionFilters()
+               .addAll(new FileChooser.ExtensionFilter("FXML", "*.fxml"),
+                       new FileChooser.ExtensionFilter("Java Source",
+                                                       "*.java"));
+        chooser.setTitle("Export 3D Model");
+        File newFile = chooser.showSaveDialog(openMenuBtn.getScene()
+                                                         .getWindow());
+        if (newFile != null) {
+            String extension = newFile.getName()
+                                      .substring(newFile.getName()
+                                                        .lastIndexOf('.')
+                                                 + 1,
+                                                 newFile.getName()
+                                                        .length())
+                                      .toLowerCase();
+            //            System.out.println("extension = " + extension);
+            if ("java".equals(extension)) {
+                final String url = loadedURL;
+                //                System.out.println("url = " + loadedPath);
+                final String baseUrl = url.substring(0, url.lastIndexOf('/'));
+
+                JavaSourceExporter javaSourceExporter = new JavaSourceExporter(baseUrl,
+                                                                               contentModel.getContent(),
+                                                                               contentModel.getTimeline(),
+                                                                               newFile);
+                javaSourceExporter.export();
+            } else if ("fxml".equals(extension)) {
+                new FXMLExporter(newFile.getAbsolutePath()).export(contentModel.getContent());
+            } else {
+                System.err.println("Can not export a file of type [."
+                                   + extension + "]");
+            }
+        }
+    }
 
     @SuppressWarnings("deprecation")
     @Override
@@ -203,7 +242,6 @@ public class MainController implements Initializable {
             url = ContentModel.class.getResource("drop-here-large-yUp.obj")
                                     .toExternalForm();
         }
-        load(url);
 
         // do initial status update
         updateStatus();
@@ -226,30 +264,26 @@ public class MainController implements Initializable {
         }
     }
 
-    private void load(File file) {
-        loadedPath = file;
-        try {
-            doLoad(file.toURI()
-                       .toURL()
-                       .toString());
-        } catch (Exception ex) {
-            Logger.getLogger(MainController.class.getName())
-                  .log(Level.SEVERE, null, ex);
-        }
-    }
-
-    private void load(String fileUrl) {
-        try {
-            try {
-                loadedPath = new File(new URL(fileUrl).toURI()).getAbsoluteFile();
-            } catch (IllegalArgumentException | MalformedURLException
-                    | URISyntaxException ignored) {
-                loadedPath = null;
+    public void toggleSettings(ActionEvent event) {
+        final SplitPane.Divider divider = splitPane.getDividers()
+                                                   .get(0);
+        if (settingsBtn.isSelected()) {
+            if (settingsLastWidth == -1) {
+                settingsLastWidth = settingsPanel.prefWidth(-1);
             }
-            doLoad(fileUrl);
-        } catch (Exception ex) {
-            Logger.getLogger(MainController.class.getName())
-                  .log(Level.SEVERE, null, ex);
+            final double divPos = 1
+                                  - (settingsLastWidth / splitPane.getWidth());
+            new Timeline(new KeyFrame(Duration.seconds(0.3),
+                                      event1 -> settingsPanel.setMinWidth(Region.USE_PREF_SIZE),
+                                      new KeyValue(divider.positionProperty(),
+                                                   divPos,
+                                                   Interpolator.EASE_BOTH))).play();
+        } else {
+            settingsLastWidth = settingsPanel.getWidth();
+            settingsPanel.setMinWidth(0);
+            new Timeline(new KeyFrame(Duration.seconds(0.3),
+                                      new KeyValue(divider.positionProperty(),
+                                                   1))).play();
         }
     }
 
@@ -279,19 +313,16 @@ public class MainController implements Initializable {
         updateStatus();
     }
 
-    private void updateStatus() {
-        nodeCount = 0;
-        meshCount = 0;
-        triangleCount = 0;
-        updateCount(contentModel.getRoot3D());
-        Node content = contentModel.getContent();
-        final Bounds bounds = content == null ? new BoundingBox(0, 0, 0, 0)
-                                              : content.getBoundsInLocal();
-        status.setText(String.format("Nodes [%d] :: Meshes [%d] :: Triangles [%d] :: "
-                                     + "Bounds [w=%.2f,h=%.2f,d=%.2f]",
-                                     nodeCount, meshCount, triangleCount,
-                                     bounds.getWidth(), bounds.getHeight(),
-                                     bounds.getDepth()));
+    private void load(File file) {
+        loadedPath = file;
+        try {
+            doLoad(file.toURI()
+                       .toURL()
+                       .toString());
+        } catch (Exception ex) {
+            Logger.getLogger(MainController.class.getName())
+                  .log(Level.SEVERE, null, ex);
+        }
     }
 
     private void updateCount(Node node) {
@@ -314,67 +345,18 @@ public class MainController implements Initializable {
         }
     }
 
-    public void toggleSettings(ActionEvent event) {
-        final SplitPane.Divider divider = splitPane.getDividers()
-                                                   .get(0);
-        if (settingsBtn.isSelected()) {
-            if (settingsLastWidth == -1) {
-                settingsLastWidth = settingsPanel.prefWidth(-1);
-            }
-            final double divPos = 1
-                                  - (settingsLastWidth / splitPane.getWidth());
-            new Timeline(new KeyFrame(Duration.seconds(0.3),
-                                      event1 -> settingsPanel.setMinWidth(Region.USE_PREF_SIZE),
-                                      new KeyValue(divider.positionProperty(),
-                                                   divPos,
-                                                   Interpolator.EASE_BOTH))).play();
-        } else {
-            settingsLastWidth = settingsPanel.getWidth();
-            settingsPanel.setMinWidth(0);
-            new Timeline(new KeyFrame(Duration.seconds(0.3),
-                                      new KeyValue(divider.positionProperty(),
-                                                   1))).play();
-        }
-    }
-
-    public void export(ActionEvent event) {
-        FileChooser chooser = new FileChooser();
-        if (loadedPath != null) {
-            chooser.setInitialDirectory(loadedPath.getAbsoluteFile()
-                                                  .getParentFile());
-        }
-        chooser.getExtensionFilters()
-               .addAll(new FileChooser.ExtensionFilter("FXML", "*.fxml"),
-                       new FileChooser.ExtensionFilter("Java Source",
-                                                       "*.java"));
-        chooser.setTitle("Export 3D Model");
-        File newFile = chooser.showSaveDialog(openMenuBtn.getScene()
-                                                         .getWindow());
-        if (newFile != null) {
-            String extension = newFile.getName()
-                                      .substring(newFile.getName()
-                                                        .lastIndexOf('.')
-                                                 + 1,
-                                                 newFile.getName()
-                                                        .length())
-                                      .toLowerCase();
-            //            System.out.println("extension = " + extension);
-            if ("java".equals(extension)) {
-                final String url = loadedURL;
-                //                System.out.println("url = " + loadedPath);
-                final String baseUrl = url.substring(0, url.lastIndexOf('/'));
-
-                JavaSourceExporter javaSourceExporter = new JavaSourceExporter(baseUrl,
-                                                                               contentModel.getContent(),
-                                                                               contentModel.getTimeline(),
-                                                                               newFile);
-                javaSourceExporter.export();
-            } else if ("fxml".equals(extension)) {
-                new FXMLExporter(newFile.getAbsolutePath()).export(contentModel.getContent());
-            } else {
-                System.err.println("Can not export a file of type [."
-                                   + extension + "]");
-            }
-        }
+    private void updateStatus() {
+        nodeCount = 0;
+        meshCount = 0;
+        triangleCount = 0;
+        updateCount(contentModel.getRoot3D());
+        Node content = contentModel.getContent();
+        final Bounds bounds = content == null ? new BoundingBox(0, 0, 0, 0)
+                                              : content.getBoundsInLocal();
+        status.setText(String.format("Nodes [%d] :: Meshes [%d] :: Triangles [%d] :: "
+                                     + "Bounds [w=%.2f,h=%.2f,d=%.2f]",
+                                     nodeCount, meshCount, triangleCount,
+                                     bounds.getWidth(), bounds.getHeight(),
+                                     bounds.getDepth()));
     }
 }

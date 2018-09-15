@@ -50,16 +50,7 @@ import javafx.scene.paint.Color;
 
 public class SessionManager {
 
-    public final String          SESSION_PROPERTIES_FILENAME;
-    private static final boolean ENABLE_SAVE_SESSION = true;
-    private String               name;
-    private Properties           props               = new Properties();
-
-    private SessionManager(String name) {
-        this.name = name;
-        SESSION_PROPERTIES_FILENAME = name + "_session.properties";
-    }
-
+    private static final boolean  ENABLE_SAVE_SESSION = true;
     private static SessionManager sessionManager;
 
     public static SessionManager createSessionManager(String name) {
@@ -68,6 +59,89 @@ public class SessionManager {
 
     public static SessionManager getSessionManager() {
         return sessionManager;
+    }
+
+    public final String SESSION_PROPERTIES_FILENAME;
+
+    private String      name;
+
+    private Properties  props = new Properties();
+
+    private SessionManager(String name) {
+        this.name = name;
+        SESSION_PROPERTIES_FILENAME = name + "_session.properties";
+    }
+
+    public void bind(final Accordion accordion, final String propertyName) {
+        Object selectedPane = props.getProperty(propertyName);
+        for (TitledPane tp : accordion.getPanes()) {
+            if (tp.getText() != null && tp.getText()
+                                          .equals(selectedPane)) {
+                accordion.setExpandedPane(tp);
+                break;
+            }
+        }
+        accordion.expandedPaneProperty()
+                 .addListener((ov, t, expandedPane) -> {
+                     if (expandedPane != null) {
+                         props.setProperty(propertyName,
+                                           expandedPane.getText());
+                     }
+                 });
+    }
+
+    public void bind(final BooleanProperty property,
+                     final String propertyName) {
+        String value = props.getProperty(propertyName);
+        if (value != null) {
+            property.set(Boolean.valueOf(value));
+        }
+        property.addListener(o -> props.setProperty(propertyName,
+                                                    property.getValue()
+                                                            .toString()));
+    }
+
+    public void bind(final DoubleProperty property, final String propertyName) {
+        String value = props.getProperty(propertyName);
+        if (value != null) {
+            property.set(Double.valueOf(value));
+        }
+        property.addListener(o -> props.setProperty(propertyName,
+                                                    property.getValue()
+                                                            .toString()));
+    }
+
+    public void bind(final ObjectProperty<Color> property,
+                     final String propertyName) {
+        String value = props.getProperty(propertyName);
+        if (value != null) {
+            property.set(Color.valueOf(value));
+        }
+        property.addListener(o -> props.setProperty(propertyName,
+                                                    property.getValue()
+                                                            .toString()));
+    }
+
+    public void bind(final ToggleGroup toggleGroup, final String propertyName) {
+        try {
+            String value = props.getProperty(propertyName);
+            if (value != null) {
+                int selectedToggleIndex = Integer.parseInt(value);
+                toggleGroup.selectToggle(toggleGroup.getToggles()
+                                                    .get(selectedToggleIndex));
+            }
+        } catch (Exception ignored) {
+        }
+        toggleGroup.selectedToggleProperty()
+                   .addListener(o -> {
+                       if (toggleGroup.getSelectedToggle() == null) {
+                           props.remove(propertyName);
+                       } else {
+                           props.setProperty(propertyName,
+                                             Integer.toString(toggleGroup.getToggles()
+                                                                         .indexOf(toggleGroup.getSelectedToggle())));
+                       }
+                   });
     }
 
     public Properties getProperties() {
@@ -106,78 +180,6 @@ public class SessionManager {
                       .log(Level.SEVERE, null, ex);
             }
         }
-    }
-
-    public void bind(final BooleanProperty property,
-                     final String propertyName) {
-        String value = props.getProperty(propertyName);
-        if (value != null) {
-            property.set(Boolean.valueOf(value));
-        }
-        property.addListener(o -> props.setProperty(propertyName,
-                                                    property.getValue()
-                                                            .toString()));
-    }
-
-    public void bind(final ObjectProperty<Color> property,
-                     final String propertyName) {
-        String value = props.getProperty(propertyName);
-        if (value != null) {
-            property.set(Color.valueOf(value));
-        }
-        property.addListener(o -> props.setProperty(propertyName,
-                                                    property.getValue()
-                                                            .toString()));
-    }
-
-    public void bind(final DoubleProperty property, final String propertyName) {
-        String value = props.getProperty(propertyName);
-        if (value != null) {
-            property.set(Double.valueOf(value));
-        }
-        property.addListener(o -> props.setProperty(propertyName,
-                                                    property.getValue()
-                                                            .toString()));
-    }
-
-    public void bind(final ToggleGroup toggleGroup, final String propertyName) {
-        try {
-            String value = props.getProperty(propertyName);
-            if (value != null) {
-                int selectedToggleIndex = Integer.parseInt(value);
-                toggleGroup.selectToggle(toggleGroup.getToggles()
-                                                    .get(selectedToggleIndex));
-            }
-        } catch (Exception ignored) {
-        }
-        toggleGroup.selectedToggleProperty()
-                   .addListener(o -> {
-                       if (toggleGroup.getSelectedToggle() == null) {
-                           props.remove(propertyName);
-                       } else {
-                           props.setProperty(propertyName,
-                                             Integer.toString(toggleGroup.getToggles()
-                                                                         .indexOf(toggleGroup.getSelectedToggle())));
-                       }
-                   });
-    }
-
-    public void bind(final Accordion accordion, final String propertyName) {
-        Object selectedPane = props.getProperty(propertyName);
-        for (TitledPane tp : accordion.getPanes()) {
-            if (tp.getText() != null && tp.getText()
-                                          .equals(selectedPane)) {
-                accordion.setExpandedPane(tp);
-                break;
-            }
-        }
-        accordion.expandedPaneProperty()
-                 .addListener((ov, t, expandedPane) -> {
-                     if (expandedPane != null) {
-                         props.setProperty(propertyName,
-                                           expandedPane.getText());
-                     }
-                 });
     }
 
 }

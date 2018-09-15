@@ -36,8 +36,12 @@ import javafx.util.Duration;
 
 public class Frame extends Duration {
 
+    static final double       FPS              = 24.0;
     private static final long serialVersionUID = 1L;
-    static final double FPS = 24.0;
+
+    public static Duration valueOf(double frames) {
+        return Duration.seconds(frames / FPS * 1000.0);
+    }
 
     Frame(double frames) {
         super(frames / FPS * 1000.0);
@@ -49,10 +53,6 @@ public class Frame extends Duration {
 
     Frame(int frames, int fps) {
         super(((double) frames) / ((double) fps) * 1000.0);
-    }
-
-    public static Duration valueOf(double frames) {
-        return Duration.seconds(frames / FPS * 1000.0);
     }
 
 }

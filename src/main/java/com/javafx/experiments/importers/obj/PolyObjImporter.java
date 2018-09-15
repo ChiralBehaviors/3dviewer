@@ -59,33 +59,23 @@ import javafx.scene.paint.PhongMaterial;
  */
 public class PolyObjImporter {
 
-    private int vertexIndex(int vertexIndex) {
-        if (vertexIndex < 0) {
-            return vertexIndex + vertexes.size() / 3;
-        } else {
-            return vertexIndex - 1;
-        }
-    }
-
-    private int uvIndex(int uvIndex) {
-        if (uvIndex < 0) {
-            return uvIndex + uvs.size() / 2;
-        } else {
-            return uvIndex - 1;
-        }
-    }
-
-    private int normalIndex(int normalIndex) {
-        if (normalIndex < 0) {
-            return normalIndex + normals.size() / 3;
-        } else {
-            return normalIndex - 1;
-        }
-    }
-
     private static boolean debug  = false;
-    private static float   scale  = 1;
+
     private static boolean flatXZ = false;
+
+    private static float   scale  = 1;
+
+    public static void setDebug(boolean debug) {
+        PolyObjImporter.debug = debug;
+    }
+
+    public static void setFlatXZ(boolean flatXZ) {
+        PolyObjImporter.flatXZ = flatXZ;
+    }
+
+    public static void setScale(float scale) {
+        PolyObjImporter.scale = scale;
+    }
 
     static void log(String string) {
         if (debug) {
@@ -93,14 +83,34 @@ public class PolyObjImporter {
         }
     }
 
-    public Set<String> getMeshes() {
-        return meshes.keySet();
-    }
+    private List<int[]>                 faceNormals          = new ArrayList<>();
 
-    private Map<String, PolygonMesh>    meshes          = new HashMap<>();
-    private Map<String, Material>       materials       = new HashMap<>();
-    private List<Map<String, Material>> materialLibrary = new ArrayList<>();
+    private List<int[]>                 faces                = new ArrayList<>();
+    private int                         facesNormalStart     = 0;
+    private int                         facesStart           = 0;
+    private Material                    material             = new PhongMaterial(Color.WHITE);
+
+    private List<Map<String, Material>> materialLibrary      = new ArrayList<>();
+
+    private Map<String, Material>       materials            = new HashMap<>();
+
+    private Map<String, PolygonMesh>    meshes               = new HashMap<>();
+
+    private FloatArrayList              normals              = new FloatArrayList();
+
     private String                      objFilename;
+
+    private IntegerArrayList            smoothingGroups      = new IntegerArrayList();
+
+    private int                         smoothingGroupsStart = 0;
+
+    private FloatArrayList              uvs                  = new FloatArrayList();
+
+    private FloatArrayList              vertexes             = new FloatArrayList();
+
+    public PolyObjImporter(InputStream inputStream) throws IOException {
+        read(inputStream);
+    }
 
     public PolyObjImporter(String filename) throws FileNotFoundException,
                                             IOException {
@@ -108,30 +118,6 @@ public class PolyObjImporter {
         log("Reading filename = " + filename);
         ;
         read(new URL(filename).openStream());
-    }
-
-    public PolyObjImporter(InputStream inputStream) throws IOException {
-        read(inputStream);
-    }
-
-    public PolygonMesh getMesh() {
-        return meshes.values()
-                     .iterator()
-                     .next();
-    }
-
-    public Material getMaterial() {
-        return materials.values()
-                        .iterator()
-                        .next();
-    }
-
-    public PolygonMesh getMesh(String key) {
-        return meshes.get(key);
-    }
-
-    public Material getMaterial(String key) {
-        return materials.get(key);
     }
 
     public PolygonMeshView buildPolygonMeshView(String key) {
@@ -143,143 +129,28 @@ public class PolyObjImporter {
         return polygonMeshView;
     }
 
-    public static void setDebug(boolean debug) {
-        PolyObjImporter.debug = debug;
+    public Material getMaterial() {
+        return materials.values()
+                        .iterator()
+                        .next();
     }
 
-    public static void setScale(float scale) {
-        PolyObjImporter.scale = scale;
+    public Material getMaterial(String key) {
+        return materials.get(key);
     }
 
-    private FloatArrayList   vertexes             = new FloatArrayList();
-    private FloatArrayList   uvs                  = new FloatArrayList();
-    private List<int[]>      faces                = new ArrayList<>();
-    private IntegerArrayList smoothingGroups      = new IntegerArrayList();
-    private FloatArrayList   normals              = new FloatArrayList();
-    private List<int[]>      faceNormals          = new ArrayList<>();
-    private Material         material             = new PhongMaterial(Color.WHITE);
-    private int              facesStart           = 0;
-    private int              facesNormalStart     = 0;
-    private int              smoothingGroupsStart = 0;
+    public PolygonMesh getMesh() {
+        return meshes.values()
+                     .iterator()
+                     .next();
+    }
 
-    private void read(InputStream inputStream) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
-        String line;
-        int currentSmoothGroup = 0;
-        String key = "default";
-        while ((line = br.readLine()) != null) {
-            try {
-                if (line.startsWith("g ") || line.equals("g")) {
-                    addMesh(key);
-                    key = line.length() > 2 ? line.substring(2) : "default";
-                    log("key = " + key);
-                } else if (line.startsWith("v ")) {
-                    String[] split = line.substring(2)
-                                         .trim()
-                                         .split(" +");
-                    float x = Float.parseFloat(split[0]) * scale;
-                    float y = Float.parseFloat(split[1]) * scale;
-                    float z = Float.parseFloat(split[2]) * scale;
+    public PolygonMesh getMesh(String key) {
+        return meshes.get(key);
+    }
 
-                    //                log("x = " + x + ", y = " + y + ", z = " + z);
-
-                    vertexes.add(x);
-                    vertexes.add(y);
-                    vertexes.add(z);
-
-                    if (flatXZ) {
-                        uvs.add(x);
-                        uvs.add(z);
-                    }
-                } else if (line.startsWith("vt ")) {
-                    String[] split = line.substring(3)
-                                         .trim()
-                                         .split(" +");
-                    float u = split[0].trim()
-                                      .equalsIgnoreCase("nan") ? Float.NaN
-                                                               : Float.parseFloat(split[0]);
-                    float v = split[1].trim()
-                                      .equalsIgnoreCase("nan") ? Float.NaN
-                                                               : Float.parseFloat(split[1]);
-
-                    //                log("u = " + u + ", v = " + v);
-
-                    uvs.add(u);
-                    uvs.add(1 - v);
-                } else if (line.startsWith("f ")) {
-                    String[] split = line.substring(2)
-                                         .trim()
-                                         .split(" +");
-                    int[] faceIndexes = new int[split.length * 2];
-                    int[] faceNormalIndexes = new int[split.length];
-                    for (int i = 0; i < split.length; i++) {
-                        String[] split2 = split[i].split("/");
-                        faceIndexes[i
-                                    * 2] = vertexIndex(Integer.parseInt(split2[0]));
-                        faceIndexes[(i * 2)
-                                    + 1] = (split2.length > 1
-                                            && split2[1].length() > 0) ? uvIndex(Integer.parseInt(split2[1]))
-                                                                       : -1;
-                        faceNormalIndexes[i] = (split2.length > 2
-                                                && split2[2].length() > 0) ? normalIndex(Integer.parseInt(split2[2]))
-                                                                           : -1;
-                    }
-                    faces.add(faceIndexes);
-                    faceNormals.add(faceNormalIndexes);
-                    smoothingGroups.add(currentSmoothGroup);
-                } else if (line.startsWith("s ")) {
-                    if (line.substring(2)
-                            .equals("off")) {
-                        currentSmoothGroup = 0;
-                    } else {
-                        currentSmoothGroup = Integer.parseInt(line.substring(2));
-                    }
-                } else if (line.startsWith("mtllib ")) {
-                    // setting materials lib
-                    String[] split = line.substring("mtllib ".length())
-                                         .trim()
-                                         .split(" +");
-                    for (String filename : split) {
-                        MtlReader mtlReader = new MtlReader(filename,
-                                                            objFilename);
-                        materialLibrary.add(mtlReader.getMaterials());
-                    }
-                } else if (line.startsWith("usemtl ")) {
-                    addMesh(key);
-                    // setting new material for next mesh
-                    String materialName = line.substring("usemtl ".length());
-                    for (Map<String, Material> mm : materialLibrary) {
-                        Material m = mm.get(materialName);
-                        if (m != null) {
-                            material = m;
-                            break;
-                        }
-                    }
-                } else if (line.isEmpty() || line.startsWith("#")) {
-                    // comments and empty lines are ignored
-                } else if (line.startsWith("vn ")) {
-                    String[] split = line.substring(2)
-                                         .trim()
-                                         .split(" +");
-                    float x = Float.parseFloat(split[0]);
-                    float y = Float.parseFloat(split[1]);
-                    float z = Float.parseFloat(split[2]);
-                    normals.add(x);
-                    normals.add(y);
-                    normals.add(z);
-                } else {
-                    log("line skipped: " + line);
-                }
-            } catch (Exception ex) {
-                Logger.getLogger(MtlReader.class.getName())
-                      .log(Level.SEVERE, "Failed to parse line:" + line, ex);
-            }
-        }
-        addMesh(key);
-
-        log("Totally loaded " + (vertexes.size() / 3.) + " vertexes, "
-            + (uvs.size() / 2.) + " uvs, " + (faces.size() / 6.) + " faces, "
-            + smoothingGroups.size() + " smoothing groups.");
+    public Set<String> getMeshes() {
+        return meshes.keySet();
     }
 
     private void addMesh(String key) {
@@ -404,7 +275,147 @@ public class PolyObjImporter {
         smoothingGroupsStart = smoothingGroups.size();
     }
 
-    public static void setFlatXZ(boolean flatXZ) {
-        PolyObjImporter.flatXZ = flatXZ;
+    private int normalIndex(int normalIndex) {
+        if (normalIndex < 0) {
+            return normalIndex + normals.size() / 3;
+        } else {
+            return normalIndex - 1;
+        }
+    }
+
+    private void read(InputStream inputStream) throws IOException {
+        BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        int currentSmoothGroup = 0;
+        String key = "default";
+        while ((line = br.readLine()) != null) {
+            try {
+                if (line.startsWith("g ") || line.equals("g")) {
+                    addMesh(key);
+                    key = line.length() > 2 ? line.substring(2) : "default";
+                    log("key = " + key);
+                } else if (line.startsWith("v ")) {
+                    String[] split = line.substring(2)
+                                         .trim()
+                                         .split(" +");
+                    float x = Float.parseFloat(split[0]) * scale;
+                    float y = Float.parseFloat(split[1]) * scale;
+                    float z = Float.parseFloat(split[2]) * scale;
+
+                    //                log("x = " + x + ", y = " + y + ", z = " + z);
+
+                    vertexes.add(x);
+                    vertexes.add(y);
+                    vertexes.add(z);
+
+                    if (flatXZ) {
+                        uvs.add(x);
+                        uvs.add(z);
+                    }
+                } else if (line.startsWith("vt ")) {
+                    String[] split = line.substring(3)
+                                         .trim()
+                                         .split(" +");
+                    float u = split[0].trim()
+                                      .equalsIgnoreCase("nan") ? Float.NaN
+                                                               : Float.parseFloat(split[0]);
+                    float v = split[1].trim()
+                                      .equalsIgnoreCase("nan") ? Float.NaN
+                                                               : Float.parseFloat(split[1]);
+
+                    //                log("u = " + u + ", v = " + v);
+
+                    uvs.add(u);
+                    uvs.add(1 - v);
+                } else if (line.startsWith("f ")) {
+                    String[] split = line.substring(2)
+                                         .trim()
+                                         .split(" +");
+                    int[] faceIndexes = new int[split.length * 2];
+                    int[] faceNormalIndexes = new int[split.length];
+                    for (int i = 0; i < split.length; i++) {
+                        String[] split2 = split[i].split("/");
+                        faceIndexes[i
+                                    * 2] = vertexIndex(Integer.parseInt(split2[0]));
+                        faceIndexes[(i * 2)
+                                    + 1] = (split2.length > 1
+                                            && split2[1].length() > 0) ? uvIndex(Integer.parseInt(split2[1]))
+                                                                       : -1;
+                        faceNormalIndexes[i] = (split2.length > 2
+                                                && split2[2].length() > 0) ? normalIndex(Integer.parseInt(split2[2]))
+                                                                           : -1;
+                    }
+                    faces.add(faceIndexes);
+                    faceNormals.add(faceNormalIndexes);
+                    smoothingGroups.add(currentSmoothGroup);
+                } else if (line.startsWith("s ")) {
+                    if (line.substring(2)
+                            .equals("off")) {
+                        currentSmoothGroup = 0;
+                    } else {
+                        currentSmoothGroup = Integer.parseInt(line.substring(2));
+                    }
+                } else if (line.startsWith("mtllib ")) {
+                    // setting materials lib
+                    String[] split = line.substring("mtllib ".length())
+                                         .trim()
+                                         .split(" +");
+                    for (String filename : split) {
+                        MtlReader mtlReader = new MtlReader(filename,
+                                                            objFilename);
+                        materialLibrary.add(mtlReader.getMaterials());
+                    }
+                } else if (line.startsWith("usemtl ")) {
+                    addMesh(key);
+                    // setting new material for next mesh
+                    String materialName = line.substring("usemtl ".length());
+                    for (Map<String, Material> mm : materialLibrary) {
+                        Material m = mm.get(materialName);
+                        if (m != null) {
+                            material = m;
+                            break;
+                        }
+                    }
+                } else if (line.isEmpty() || line.startsWith("#")) {
+                    // comments and empty lines are ignored
+                } else if (line.startsWith("vn ")) {
+                    String[] split = line.substring(2)
+                                         .trim()
+                                         .split(" +");
+                    float x = Float.parseFloat(split[0]);
+                    float y = Float.parseFloat(split[1]);
+                    float z = Float.parseFloat(split[2]);
+                    normals.add(x);
+                    normals.add(y);
+                    normals.add(z);
+                } else {
+                    log("line skipped: " + line);
+                }
+            } catch (Exception ex) {
+                Logger.getLogger(MtlReader.class.getName())
+                      .log(Level.SEVERE, "Failed to parse line:" + line, ex);
+            }
+        }
+        addMesh(key);
+
+        log("Totally loaded " + (vertexes.size() / 3.) + " vertexes, "
+            + (uvs.size() / 2.) + " uvs, " + (faces.size() / 6.) + " faces, "
+            + smoothingGroups.size() + " smoothing groups.");
+    }
+
+    private int uvIndex(int uvIndex) {
+        if (uvIndex < 0) {
+            return uvIndex + uvs.size() / 2;
+        } else {
+            return uvIndex - 1;
+        }
+    }
+
+    private int vertexIndex(int vertexIndex) {
+        if (vertexIndex < 0) {
+            return vertexIndex + vertexes.size() / 3;
+        } else {
+            return vertexIndex - 1;
+        }
     }
 }

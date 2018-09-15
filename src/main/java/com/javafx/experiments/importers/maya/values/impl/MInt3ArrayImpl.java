@@ -40,7 +40,47 @@ import com.javafx.experiments.importers.maya.values.MInt3Array;
 
 public class MInt3ArrayImpl extends MDataImpl implements MInt3Array {
 
-    private int[] data;
+    static class MInt3ArraySlice extends MDataImpl implements MInt3Array {
+        private MInt3Array array;
+        private int        base;
+        private int        length;
+
+        MInt3ArraySlice(MInt3Array array, int base, int length) {
+            super(array.getType());
+            this.array = array;
+            this.base = base;
+            this.length = length;
+        }
+
+        @Override
+        public int[] get() {
+            // FIXME
+            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
+        }
+
+        @Override
+        public int getSize() {
+            return length;
+        }
+
+        @Override
+        public void parse(Iterator<String> elements) {
+            new Parser(this).parse(elements);
+        }
+
+        @Override
+        public void set(int index, int x, int y, int z) {
+            if (index >= length) {
+                throw new ArrayIndexOutOfBoundsException(index);
+            }
+            array.set(base + index, x, y, z);
+        }
+
+        @Override
+        public void setSize(int size) {
+            array.setSize(base + size);
+        }
+    }
 
     static class Parser {
         private MInt3Array array;
@@ -59,73 +99,10 @@ public class MInt3ArrayImpl extends MDataImpl implements MInt3Array {
         }
     }
 
-    static class MInt3ArraySlice extends MDataImpl implements MInt3Array {
-        private MInt3Array array;
-        private int        base;
-        private int        length;
-
-        MInt3ArraySlice(MInt3Array array, int base, int length) {
-            super(array.getType());
-            this.array = array;
-            this.base = base;
-            this.length = length;
-        }
-
-        @Override
-        public void setSize(int size) {
-            array.setSize(base + size);
-        }
-
-        @Override
-        public int getSize() {
-            return length;
-        }
-
-        @Override
-        public void set(int index, int x, int y, int z) {
-            if (index >= length) {
-                throw new ArrayIndexOutOfBoundsException(index);
-            }
-            array.set(base + index, x, y, z);
-        }
-
-        @Override
-        public int[] get() {
-            // FIXME
-            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
-        }
-
-        @Override
-        public void parse(Iterator<String> elements) {
-            new Parser(this).parse(elements);
-        }
-    }
+    private int[] data;
 
     public MInt3ArrayImpl(MInt3ArrayType type) {
         super(type);
-    }
-
-    @Override
-    public void setSize(int size) {
-        if (data == null || 3 * size > data.length) {
-            int[] newdata = new int[3 * size];
-            if (data != null) {
-                System.arraycopy(data, 0, newdata, 0, data.length);
-            }
-            data = newdata;
-        }
-    }
-
-    @Override
-    public void set(int index, int x, int y, int z) {
-        data[3 * index + 0] = x;
-        data[3 * index + 1] = y;
-        data[3 * index + 2] = z;
-    }
-
-    @Override
-    public int getSize() {
-        return data == null ? 0 : data.length / 3;
     }
 
     @Override
@@ -145,7 +122,30 @@ public class MInt3ArrayImpl extends MDataImpl implements MInt3Array {
     }
 
     @Override
+    public int getSize() {
+        return data == null ? 0 : data.length / 3;
+    }
+
+    @Override
     public void parse(Iterator<String> elements) {
         new Parser(this).parse(elements);
+    }
+
+    @Override
+    public void set(int index, int x, int y, int z) {
+        data[3 * index + 0] = x;
+        data[3 * index + 1] = y;
+        data[3 * index + 2] = z;
+    }
+
+    @Override
+    public void setSize(int size) {
+        if (data == null || 3 * size > data.length) {
+            int[] newdata = new int[3 * size];
+            if (data != null) {
+                System.arraycopy(data, 0, newdata, 0, data.length);
+            }
+            data = newdata;
+        }
     }
 }

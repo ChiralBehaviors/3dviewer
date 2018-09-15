@@ -37,53 +37,22 @@ package com.javafx.experiments.utils3d.geom;
  */
 public class Vec2f {
     /**
-     * The x coordinate.
-     */
-    public float x;
-
-    /**
-     * The y coordinate.
-     */
-    public float y;
-
-    public Vec2f() {
-    }
-
-    public Vec2f(float x, float y) {
-        this.x = x;
-        this.y = y;
-    }
-
-    public Vec2f(Vec2f v) {
-        this.x = v.x;
-        this.y = v.y;
-    }
-
-    /**
-     * Sets the location of this <code>Vec2f</code> to the same coordinates as
-     * the specified <code>Vec2f</code> object.
+     * Returns the distance between two points.
      *
-     * @param v
-     *            the specified <code>Vec2f</code> to which to set this
-     *            <code>Vec2f</code>
+     * @param x1
+     *            the X coordinate of the first specified point
+     * @param y1
+     *            the Y coordinate of the first specified point
+     * @param x2
+     *            the X coordinate of the second specified point
+     * @param y2
+     *            the Y coordinate of the second specified point
+     * @return the distance between the two sets of specified coordinates.
      */
-    public void set(Vec2f v) {
-        this.x = v.x;
-        this.y = v.y;
-    }
-
-    /**
-     * Sets the location of this <code>Vec2f</code> to the specified
-     * <code>float</code> coordinates.
-     *
-     * @param x
-     *            the new X coordinate of this {@code Vec2f}
-     * @param y
-     *            the new Y coordinate of this {@code Vec2f}
-     */
-    public void set(float x, float y) {
-        this.x = x;
-        this.y = y;
+    public static float distance(float x1, float y1, float x2, float y2) {
+        x1 -= x2;
+        y1 -= y2;
+        return (float) Math.sqrt(x1 * x1 + y1 * y1);
     }
 
     /**
@@ -107,22 +76,60 @@ public class Vec2f {
     }
 
     /**
-     * Returns the distance between two points.
-     *
-     * @param x1
-     *            the X coordinate of the first specified point
-     * @param y1
-     *            the Y coordinate of the first specified point
-     * @param x2
-     *            the X coordinate of the second specified point
-     * @param y2
-     *            the Y coordinate of the second specified point
-     * @return the distance between the two sets of specified coordinates.
+     * The x coordinate.
      */
-    public static float distance(float x1, float y1, float x2, float y2) {
-        x1 -= x2;
-        y1 -= y2;
-        return (float) Math.sqrt(x1 * x1 + y1 * y1);
+    public float x;
+
+    /**
+     * The y coordinate.
+     */
+    public float y;
+
+    public Vec2f() {
+    }
+
+    public Vec2f(float x, float y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public Vec2f(Vec2f v) {
+        this.x = v.x;
+        this.y = v.y;
+    }
+
+    /**
+     * Returns the distance from this <code>Vec2f</code> to a specified point.
+     *
+     * @param vx
+     *            the X coordinate of the specified point to be measured against
+     *            this <code>Vec2f</code>
+     * @param vy
+     *            the Y coordinate of the specified point to be measured against
+     *            this <code>Vec2f</code>
+     * @return the distance between this <code>Vec2f</code> and a specified
+     *         point.
+     */
+    public float distance(float vx, float vy) {
+        vx -= x;
+        vy -= y;
+        return (float) Math.sqrt(vx * vx + vy * vy);
+    }
+
+    /**
+     * Returns the distance from this <code>Vec2f</code> to a specified
+     * <code>Vec2f</code>.
+     *
+     * @param v
+     *            the specified point to be measured against this
+     *            <code>Vec2f</code>
+     * @return the distance between this <code>Vec2f</code> and the specified
+     *         <code>Vec2f</code>.
+     */
+    public float distance(Vec2f v) {
+        float vx = v.x - this.x;
+        float vy = v.y - this.y;
+        return (float) Math.sqrt(vx * vx + vy * vy);
     }
 
     /**
@@ -161,53 +168,6 @@ public class Vec2f {
     }
 
     /**
-     * Returns the distance from this <code>Vec2f</code> to a specified point.
-     *
-     * @param vx
-     *            the X coordinate of the specified point to be measured against
-     *            this <code>Vec2f</code>
-     * @param vy
-     *            the Y coordinate of the specified point to be measured against
-     *            this <code>Vec2f</code>
-     * @return the distance between this <code>Vec2f</code> and a specified
-     *         point.
-     */
-    public float distance(float vx, float vy) {
-        vx -= x;
-        vy -= y;
-        return (float) Math.sqrt(vx * vx + vy * vy);
-    }
-
-    /**
-     * Returns the distance from this <code>Vec2f</code> to a specified
-     * <code>Vec2f</code>.
-     *
-     * @param v
-     *            the specified point to be measured against this
-     *            <code>Vec2f</code>
-     * @return the distance between this <code>Vec2f</code> and the specified
-     *         <code>Vec2f</code>.
-     */
-    public float distance(Vec2f v) {
-        float vx = v.x - this.x;
-        float vy = v.y - this.y;
-        return (float) Math.sqrt(vx * vx + vy * vy);
-    }
-
-    /**
-     * Returns the hashcode for this <code>Vec2f</code>.
-     *
-     * @return a hash code for this <code>Vec2f</code>.
-     */
-    @Override
-    public int hashCode() {
-        int bits = 7;
-        bits = 31 * bits + Float.floatToIntBits(x);
-        bits = 31 * bits + Float.floatToIntBits(y);
-        return bits;
-    }
-
-    /**
      * Determines whether or not two 2D points or vectors are equal. Two
      * instances of <code>Vec2f</code> are equal if the values of their
      * <code>x</code> and <code>y</code> member fields, representing their
@@ -229,6 +189,46 @@ public class Vec2f {
             return (x == v.x) && (y == v.y);
         }
         return false;
+    }
+
+    /**
+     * Returns the hashcode for this <code>Vec2f</code>.
+     *
+     * @return a hash code for this <code>Vec2f</code>.
+     */
+    @Override
+    public int hashCode() {
+        int bits = 7;
+        bits = 31 * bits + Float.floatToIntBits(x);
+        bits = 31 * bits + Float.floatToIntBits(y);
+        return bits;
+    }
+
+    /**
+     * Sets the location of this <code>Vec2f</code> to the specified
+     * <code>float</code> coordinates.
+     *
+     * @param x
+     *            the new X coordinate of this {@code Vec2f}
+     * @param y
+     *            the new Y coordinate of this {@code Vec2f}
+     */
+    public void set(float x, float y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * Sets the location of this <code>Vec2f</code> to the same coordinates as
+     * the specified <code>Vec2f</code> object.
+     *
+     * @param v
+     *            the specified <code>Vec2f</code> to which to set this
+     *            <code>Vec2f</code>
+     */
+    public void set(Vec2f v) {
+        this.x = v.x;
+        this.y = v.y;
     }
 
     /**

@@ -67,12 +67,60 @@ import javafx.scene.transform.Transform;
  */
 public class Optimizer {
 
-    private Timeline       timeline;
-    private Node           root;
+    private static class KeyFrameComparator implements Comparator<KeyFrame> {
+
+        public KeyFrameComparator() {
+        }
+
+        @Override
+        public int compare(KeyFrame o1, KeyFrame o2) {
+            //            int compareTo = o1.getTime().compareTo(o2.getTime());
+            //            if (compareTo == 0 && o1 != o2) {
+            //                System.err.println("those two KeyFrames are equal: o1 = " + o1.getTime() + " and o2 = " + o2.getTime());
+            //            }
+            return o1.getTime()
+                     .compareTo(o2.getTime());
+        }
+    }
+
+    private static class KeyInfo {
+        boolean  first;
+        KeyFrame keyFrame;
+        KeyValue keyValue;
+
+        public KeyInfo(KeyFrame keyFrame, KeyValue keyValue, boolean first) {
+            this.keyFrame = keyFrame;
+            this.keyValue = keyValue;
+            this.first = first;
+        }
+    }
+
+    private static class MapOfLists<K, V> extends HashMap<K, List<V>> {
+
+        private static final long serialVersionUID = 1L;
+
+        public void add(K key, V value) {
+            List<V> p = get(key);
+            if (p == null) {
+                p = new ArrayList<>();
+                put(key, p);
+            }
+            p.add(value);
+        }
+    }
+
     private Set<Transform> bound             = new HashSet<>();
-    private List<Parent>   emptyParents      = new ArrayList<>();
-    private List<MeshView> meshViews         = new ArrayList<>();
     private boolean        convertToDiscrete = true;
+    private List<Parent>   emptyParents      = new ArrayList<>();
+
+    private List<MeshView> meshViews         = new ArrayList<>();
+
+    private Node           root;
+
+    private Timeline       timeline;
+
+    private int            trRemoved, trTotal, groupsTotal, trCandidate,
+            trEmpty;
 
     public Optimizer(Timeline timeline, Node root) {
         this(timeline, root, false);
@@ -83,8 +131,6 @@ public class Optimizer {
         this.root = root;
         this.convertToDiscrete = convertToDiscrete;
     }
-
-    private int trRemoved, trTotal, groupsTotal, trCandidate, trEmpty;
 
     public void optimize() {
         trRemoved = 0;
@@ -150,12 +196,6 @@ public class Optimizer {
         if (node instanceof MeshView) {
             meshViews.add((MeshView) node);
         }
-    }
-
-    private void optimizeMeshes() {
-        optimizePoints();
-        optimizeTexCoords();
-        optimizeFaces();
     }
 
     private void optimizeFaces() {
@@ -226,6 +266,12 @@ public class Optimizer {
                           100d * samePoints / total, smallArea,
                           100d * smallArea / total, badTotal,
                           100d * badTotal / total, total);
+    }
+
+    private void optimizeMeshes() {
+        optimizePoints();
+        optimizeTexCoords();
+        optimizeFaces();
     }
 
     private void optimizePoints() {
@@ -349,33 +395,7 @@ public class Optimizer {
         System.out.printf("Now we have %d texcoords.\n", check);
     }
 
-    private static class KeyInfo {
-        KeyFrame keyFrame;
-        KeyValue keyValue;
-        boolean  first; 
-
-        public KeyInfo(KeyFrame keyFrame, KeyValue keyValue, boolean first) {
-            this.keyFrame = keyFrame;
-            this.keyValue = keyValue;
-            this.first = first;
-        }
-    }
-
-    private static class MapOfLists<K, V> extends HashMap<K, List<V>> {
-
-        private static final long serialVersionUID = 1L;
-
-        public void add(K key, V value) {
-            List<V> p = get(key);
-            if (p == null) {
-                p = new ArrayList<>();
-                put(key, p);
-            }
-            p.add(value);
-        }
-    }
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     private void parseTimeline() {
         bound.clear();
         if (timeline == null) {
@@ -540,22 +560,6 @@ public class Optimizer {
              .addAll(p.getChildrenUnmodifiable());
             g.getChildren()
              .remove(p);
-        }
-    }
-
-    private static class KeyFrameComparator implements Comparator<KeyFrame> {
-
-        public KeyFrameComparator() {
-        }
-
-        @Override
-        public int compare(KeyFrame o1, KeyFrame o2) {
-            //            int compareTo = o1.getTime().compareTo(o2.getTime());
-            //            if (compareTo == 0 && o1 != o2) {
-            //                System.err.println("those two KeyFrames are equal: o1 = " + o1.getTime() + " and o2 = " + o2.getTime());
-            //            }
-            return o1.getTime()
-                     .compareTo(o2.getTime());
         }
     }
 

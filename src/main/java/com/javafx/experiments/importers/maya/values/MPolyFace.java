@@ -36,10 +36,30 @@ import java.util.List;
 
 public interface MPolyFace extends MData {
     public static class FaceData {
+        private int[]   faceColors;
         private int[]   faceEdges;
         private int[]   holeEdges;
         private int[][] uvData;
-        private int[]   faceColors;
+
+        public int[] getFaceColors() {
+            return faceColors;
+        }
+
+        public int[] getFaceEdges() {
+            return faceEdges;
+        }
+
+        public int[] getHoleEdges() {
+            return holeEdges;
+        }
+
+        public int[][] getUVData() {
+            return uvData;
+        }
+
+        public void setFaceColors(int[] faceColors) {
+            this.faceColors = faceColors;
+        }
 
         public void setFaceEdges(int[] faceEdges) {
             this.faceEdges = faceEdges;
@@ -60,26 +80,6 @@ public interface MPolyFace extends MData {
             uvData[index] = data;
         }
 
-        public void setFaceColors(int[] faceColors) {
-            this.faceColors = faceColors;
-        }
-
-        public int[] getFaceEdges() {
-            return faceEdges;
-        }
-
-        public int[] getHoleEdges() {
-            return holeEdges;
-        }
-
-        public int[][] getUVData() {
-            return uvData;
-        }
-
-        public int[] getFaceColors() {
-            return faceColors;
-        }
-
         @Override
         public String toString() {
             StringBuffer buf = new StringBuffer();
@@ -95,18 +95,6 @@ public interface MPolyFace extends MData {
             return buf.toString();
         }
 
-        private void appendIntArray(StringBuffer buf, int[] array) {
-            if (array == null) {
-                buf.append(array);
-            } else {
-                buf.append("[");
-                for (int element : array) {
-                    buf.append(" ");
-                    buf.append(element);
-                }
-            }
-        }
-
         private void append2DIntArray(StringBuffer buf, int[][] array) {
             if (array == null) {
                 buf.append(array);
@@ -116,6 +104,18 @@ public interface MPolyFace extends MData {
                     appendIntArray(buf, element);
                 }
                 buf.append("]");
+            }
+        }
+
+        private void appendIntArray(StringBuffer buf, int[] array) {
+            if (array == null) {
+                buf.append(array);
+            } else {
+                buf.append("[");
+                for (int element : array) {
+                    buf.append(" ");
+                    buf.append(element);
+                }
             }
         }
     }

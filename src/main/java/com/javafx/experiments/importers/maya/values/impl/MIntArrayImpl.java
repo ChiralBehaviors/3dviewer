@@ -40,7 +40,52 @@ import com.javafx.experiments.importers.maya.values.MIntArray;
 
 public class MIntArrayImpl extends MDataImpl implements MIntArray {
 
-    private int[] data;
+    static class MIntArraySlice extends MDataImpl implements MIntArray {
+        private MIntArray array;
+        private int       base;
+        private int       length;
+
+        MIntArraySlice(MIntArray array, int base, int length) {
+            super(array.getType());
+            this.array = array;
+            this.base = base;
+            this.length = length;
+        }
+
+        @Override
+        public int[] get() {
+            // FIXME
+            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
+        }
+
+        @Override
+        public int get(int index) {
+            return array.get(base + index);
+        }
+
+        @Override
+        public int getSize() {
+            return length;
+        }
+
+        @Override
+        public void parse(Iterator<String> elements) {
+            new Parser(this).parse(elements);
+        }
+
+        @Override
+        public void set(int index, int x) {
+            if (index >= length) {
+                throw new ArrayIndexOutOfBoundsException(index);
+            }
+            array.set(base + index, x);
+        }
+
+        @Override
+        public void setSize(int size) {
+            array.setSize(base + size);
+        }
+    }
 
     static class Parser {
         private MIntArray array;
@@ -57,72 +102,10 @@ public class MIntArrayImpl extends MDataImpl implements MIntArray {
         }
     }
 
-    static class MIntArraySlice extends MDataImpl implements MIntArray {
-        private MIntArray array;
-        private int       base;
-        private int       length;
-
-        MIntArraySlice(MIntArray array, int base, int length) {
-            super(array.getType());
-            this.array = array;
-            this.base = base;
-            this.length = length;
-        }
-
-        @Override
-        public void setSize(int size) {
-            array.setSize(base + size);
-        }
-
-        @Override
-        public int getSize() {
-            return length;
-        }
-
-        @Override
-        public void set(int index, int x) {
-            if (index >= length) {
-                throw new ArrayIndexOutOfBoundsException(index);
-            }
-            array.set(base + index, x);
-        }
-
-        @Override
-        public int[] get() {
-            // FIXME
-            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
-        }
-
-        @Override
-        public int get(int index) {
-            return array.get(base + index);
-        }
-
-        @Override
-        public void parse(Iterator<String> elements) {
-            new Parser(this).parse(elements);
-        }
-    }
+    private int[] data;
 
     public MIntArrayImpl(MIntArrayType type) {
         super(type);
-    }
-
-    @Override
-    public void setSize(int size) {
-        if (data == null || size > data.length) {
-            int[] newdata = new int[size];
-            if (data != null) {
-                System.arraycopy(data, 0, newdata, 0, data.length);
-            }
-            data = newdata;
-        }
-    }
-
-    @Override
-    public void set(int index, int x) {
-        setSize(index + 1);
-        data[index] = x;
     }
 
     @Override
@@ -141,18 +124,35 @@ public class MIntArrayImpl extends MDataImpl implements MIntArray {
     }
 
     @Override
-    public int getSize() {
-        return data == null ? 0 : data.length;
-    }
-
-    @Override
     public MData getData(int start, int end) {
         return new MIntArraySlice(this, start, end - start + 1);
     }
 
     @Override
+    public int getSize() {
+        return data == null ? 0 : data.length;
+    }
+
+    @Override
     public void parse(Iterator<String> elements) {
         new Parser(this).parse(elements);
+    }
+
+    @Override
+    public void set(int index, int x) {
+        setSize(index + 1);
+        data[index] = x;
+    }
+
+    @Override
+    public void setSize(int size) {
+        if (data == null || size > data.length) {
+            int[] newdata = new int[size];
+            if (data != null) {
+                System.arraycopy(data, 0, newdata, 0, data.length);
+            }
+            data = newdata;
+        }
     }
 
     @Override

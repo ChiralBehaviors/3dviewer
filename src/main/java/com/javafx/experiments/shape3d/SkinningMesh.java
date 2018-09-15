@@ -53,15 +53,41 @@ import javafx.scene.transform.Transform;
  * transforms. The mesh can be updated with an AnimationTimer.
  */
 public class SkinningMesh extends PolygonMesh {
-    private final float[][]        relativePoints;             // nJoints x nPoints*3
-    private final float[][]        weights;                    // nJoints x nPoints
-    private final List<Integer>[]  weightIndices;
+    private class JointIndex {
+        public List<JointIndex> children = new ArrayList<JointIndex>();
+        public int              index;
+        public Transform        localToGlobalTransform;
+        public Node             node;
+        public JointIndex       parent   = null;
+
+        public JointIndex(Node n, int ind, List<Joint> orderedJoints) {
+            node = n;
+            index = ind;
+            if (node instanceof Parent) {
+                for (Node childJoint : ((Parent) node).getChildrenUnmodifiable()) {
+                    if (childJoint instanceof Parent) { // is childJoint a joint or a node with children?
+                        int childInd = orderedJoints.indexOf(childJoint);
+                        JointIndex childJointIndex = new JointIndex(childJoint,
+                                                                    childInd,
+                                                                    orderedJoints);
+                        childJointIndex.parent = this;
+                        children.add(childJointIndex);
+                    }
+                }
+            }
+        }
+    }
+
+    private Transform              bindGlobalInverseTransform;
     private final List<JointIndex> jointIndexForest;
     private boolean                jointsTransformDirty = true;
-    private Transform              bindGlobalInverseTransform;
     private final Transform[]      jointToRootTransforms;      // the root refers to the group containing all the mesh skinning nodes (i.e. the parent of jointForest)
-    private final int              nPoints;
     private final int              nJoints;
+    private final int              nPoints;
+    private final float[][]        relativePoints;             // nJoints x nPoints*3
+    private final List<Integer>[]  weightIndices;
+
+    private final float[][]        weights;                    // nJoints x nPoints
 
     /**
      * SkinningMesh constructor
@@ -170,46 +196,6 @@ public class SkinningMesh extends PolygonMesh {
         }
     }
 
-    private class JointIndex {
-        public Node             node;
-        public int              index;
-        public List<JointIndex> children = new ArrayList<JointIndex>();
-        public JointIndex       parent   = null;
-        public Transform        localToGlobalTransform;
-
-        public JointIndex(Node n, int ind, List<Joint> orderedJoints) {
-            node = n;
-            index = ind;
-            if (node instanceof Parent) {
-                for (Node childJoint : ((Parent) node).getChildrenUnmodifiable()) {
-                    if (childJoint instanceof Parent) { // is childJoint a joint or a node with children?
-                        int childInd = orderedJoints.indexOf(childJoint);
-                        JointIndex childJointIndex = new JointIndex(childJoint,
-                                                                    childInd,
-                                                                    orderedJoints);
-                        childJointIndex.parent = this;
-                        children.add(childJointIndex);
-                    }
-                }
-            }
-        }
-    }
-
-    // Updates the jointToRootTransforms by doing a a depth-first search of the jointIndexForest
-    private void updateLocalToGlobalTransforms(List<JointIndex> jointIndexForest) {
-        for (JointIndex jointIndex : jointIndexForest) {
-            if (jointIndex.parent == null) {
-                jointIndex.localToGlobalTransform = bindGlobalInverseTransform.createConcatenation(jointIndex.node.getLocalToParentTransform());
-            } else {
-                jointIndex.localToGlobalTransform = jointIndex.parent.localToGlobalTransform.createConcatenation(jointIndex.node.getLocalToParentTransform());
-            }
-            if (jointIndex.index != -1) {
-                jointToRootTransforms[jointIndex.index] = jointIndex.localToGlobalTransform;
-            }
-            updateLocalToGlobalTransforms(jointIndex.children);
-        }
-    }
-
     // Updates its points only if any of the joints' transforms have changed
     public void update() {
         if (!jointsTransformDirty) {
@@ -244,5 +230,20 @@ public class SkinningMesh extends PolygonMesh {
         getPoints().set(0, points, 0, points.length);
 
         jointsTransformDirty = false;
+    }
+
+    // Updates the jointToRootTransforms by doing a a depth-first search of the jointIndexForest
+    private void updateLocalToGlobalTransforms(List<JointIndex> jointIndexForest) {
+        for (JointIndex jointIndex : jointIndexForest) {
+            if (jointIndex.parent == null) {
+                jointIndex.localToGlobalTransform = bindGlobalInverseTransform.createConcatenation(jointIndex.node.getLocalToParentTransform());
+            } else {
+                jointIndex.localToGlobalTransform = jointIndex.parent.localToGlobalTransform.createConcatenation(jointIndex.node.getLocalToParentTransform());
+            }
+            if (jointIndex.index != -1) {
+                jointToRootTransforms[jointIndex.index] = jointIndex.localToGlobalTransform;
+            }
+            updateLocalToGlobalTransforms(jointIndex.children);
+        }
     }
 }

@@ -35,11 +35,11 @@ package com.javafx.experiments.importers.maya.values;
 import java.util.List;
 
 public interface MArray extends MData {
-    /** Set one element of this array. */
-    public void set(int index, MData data);
-
     /** Get all of the data in this array. */
     public List<MData> get();
 
     public int getSize();
+
+    /** Set one element of this array. */
+    public void set(int index, MData data);
 }

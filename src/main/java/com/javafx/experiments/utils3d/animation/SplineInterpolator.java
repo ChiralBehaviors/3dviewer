@@ -54,19 +54,6 @@ import javafx.animation.Interpolator;
 public class SplineInterpolator extends Interpolator {
 
     /**
-     * The coordinates of the 2 2D control points for a cubic Bezier curve, with
-     * implicit start point (0,0) and end point (1,1) -- each individual
-     * coordinate value must be in range [0,1].
-     */
-    private final double        x1, y1, x2, y2;
-
-    /**
-     * Do the input control points form a line with (0,0) and (1,1), i.e., x1 ==
-     * y1 and x2 == y2 -- if so, then all x(t) == y(t) for the curve.
-     */
-    private final boolean       isCurveLinear;
-
-    /**
      * Power of 2 sample size for lookup table of x values.
      */
     private static final int    SAMPLE_SIZE      = 16;
@@ -77,6 +64,19 @@ public class SplineInterpolator extends Interpolator {
      * integer multiples (integer in range of [0..SAMPLE_SIZE].
      */
     private static final double SAMPLE_INCREMENT = 1.0 / SAMPLE_SIZE;
+
+    /**
+     * Do the input control points form a line with (0,0) and (1,1), i.e., x1 ==
+     * y1 and x2 == y2 -- if so, then all x(t) == y(t) for the curve.
+     */
+    private final boolean       isCurveLinear;
+
+    /**
+     * The coordinates of the 2 2D control points for a cubic Bezier curve, with
+     * implicit start point (0,0) and end point (1,1) -- each individual
+     * coordinate value must be in range [0,1].
+     */
+    private final double        x1, y1, x2, y2;
 
     /**
      * X values for the bezier curve, sampled at increments of 1/SAMPLE_SIZE --
@@ -122,34 +122,29 @@ public class SplineInterpolator extends Interpolator {
         }
     }
 
-    public double getX1() {
-        return x1;
-    }
-
-    public double getY1() {
-        return y1;
-    }
-
-    public double getX2() {
-        return x2;
-    }
-
-    public double getY2() {
-        return y2;
-    }
-
+    /**
+     * Returns the y-value of the cubic bezier curve that corresponds to the x
+     * input.
+     *
+     * @param x
+     *            is x-value of cubic bezier curve, in range [0,1]
+     * @return corresponding y-value of cubic bezier curve -- in range [0,1]
+     */
     @Override
-    public int hashCode() {
-        int hash = 7;
-        hash = 19 * hash + (int) (Double.doubleToLongBits(this.x1)
-                                  ^ (Double.doubleToLongBits(this.x1) >>> 32));
-        hash = 19 * hash + (int) (Double.doubleToLongBits(this.y1)
-                                  ^ (Double.doubleToLongBits(this.y1) >>> 32));
-        hash = 19 * hash + (int) (Double.doubleToLongBits(this.x2)
-                                  ^ (Double.doubleToLongBits(this.x2) >>> 32));
-        hash = 19 * hash + (int) (Double.doubleToLongBits(this.y2)
-                                  ^ (Double.doubleToLongBits(this.y2) >>> 32));
-        return hash;
+    public double curve(double x) {
+        // check user input for precondition
+        if (x < 0 || x > 1) {
+            throw new IllegalArgumentException("x must be in range [0,1]");
+        }
+
+        // check quick exit identity cases (linear curve or curve endpoints)
+        if (isCurveLinear || x == 0 || x == 1) {
+            return x;
+        }
+
+        // find the t parameter for a given x value, and use this t to calculate
+        // the corresponding y value
+        return eval(findTForX(x), y1, y2);
     }
 
     @Override
@@ -176,29 +171,40 @@ public class SplineInterpolator extends Interpolator {
         return true;
     }
 
-    /**
-     * Returns the y-value of the cubic bezier curve that corresponds to the x
-     * input.
-     *
-     * @param x
-     *            is x-value of cubic bezier curve, in range [0,1]
-     * @return corresponding y-value of cubic bezier curve -- in range [0,1]
-     */
+    public double getX1() {
+        return x1;
+    }
+
+    public double getX2() {
+        return x2;
+    }
+
+    public double getY1() {
+        return y1;
+    }
+
+    public double getY2() {
+        return y2;
+    }
+
     @Override
-    public double curve(double x) {
-        // check user input for precondition
-        if (x < 0 || x > 1) {
-            throw new IllegalArgumentException("x must be in range [0,1]");
-        }
+    public int hashCode() {
+        int hash = 7;
+        hash = 19 * hash + (int) (Double.doubleToLongBits(this.x1)
+                                  ^ (Double.doubleToLongBits(this.x1) >>> 32));
+        hash = 19 * hash + (int) (Double.doubleToLongBits(this.y1)
+                                  ^ (Double.doubleToLongBits(this.y1) >>> 32));
+        hash = 19 * hash + (int) (Double.doubleToLongBits(this.x2)
+                                  ^ (Double.doubleToLongBits(this.x2) >>> 32));
+        hash = 19 * hash + (int) (Double.doubleToLongBits(this.y2)
+                                  ^ (Double.doubleToLongBits(this.y2) >>> 32));
+        return hash;
+    }
 
-        // check quick exit identity cases (linear curve or curve endpoints)
-        if (isCurveLinear || x == 0 || x == 1) {
-            return x;
-        }
-
-        // find the t parameter for a given x value, and use this t to calculate
-        // the corresponding y value
-        return eval(findTForX(x), y1, y2);
+    @Override
+    public String toString() {
+        return "SplineInterpolator [x1=" + x1 + ", y1=" + y1 + ", x2=" + x2
+               + ", y2=" + y2 + "]";
     }
 
     /**
@@ -250,41 +256,6 @@ public class SplineInterpolator extends Interpolator {
     }
 
     /**
-     * Find an initial good guess for what parameter t might produce the x-value
-     * on the Bezier curve -- uses linear interpolation on the x-value sample
-     * array that was created on construction.
-     *
-     * @param x
-     *            is x-value of cubic bezier curve, in range [0,1]
-     * @return a good initial guess for parameter t (in range [0,1]) that gives
-     *         x
-     */
-    private double getInitialGuessForT(double x) {
-        // find which places in the array that x would be sandwiched between,
-        // and then linearly interpolate a reasonable value of t -- array values
-        // are ascending (or at least never descending) -- binary search is
-        // probably more trouble than it is worth here
-        for (int i = 1; i < SAMPLE_SIZE + 1; ++i) {
-            if (xSamples[i] >= x) {
-                double xRange = xSamples[i] - xSamples[i - 1];
-                if (xRange == 0) {
-                    // no change in value between samples, so use earlier time
-                    return (i - 1) * SAMPLE_INCREMENT;
-                } else {
-                    // linearly interpolate the time value
-                    return ((i - 1) + ((x - xSamples[i - 1]) / xRange))
-                           * SAMPLE_INCREMENT;
-                }
-            }
-        }
-
-        // shouldn't get here since 0 <= x <= 1, and xSamples[0] == 0 and
-        // xSamples[SAMPLE_SIZE] == 1 (using power of 2 SAMPLE_SIZE for more
-        // exact increment arithmetic)
-        return 1;
-    }
-
-    /**
      * Finds the parameter t that produces the given x-value for the curve --
      * uses Newton-Raphson to refine the value as opposed to subdividing until
      * we are within some tolerance.
@@ -322,10 +293,39 @@ public class SplineInterpolator extends Interpolator {
         return t;
     }
 
-    @Override
-    public String toString() {
-        return "SplineInterpolator [x1=" + x1 + ", y1=" + y1 + ", x2=" + x2
-               + ", y2=" + y2 + "]";
+    /**
+     * Find an initial good guess for what parameter t might produce the x-value
+     * on the Bezier curve -- uses linear interpolation on the x-value sample
+     * array that was created on construction.
+     *
+     * @param x
+     *            is x-value of cubic bezier curve, in range [0,1]
+     * @return a good initial guess for parameter t (in range [0,1]) that gives
+     *         x
+     */
+    private double getInitialGuessForT(double x) {
+        // find which places in the array that x would be sandwiched between,
+        // and then linearly interpolate a reasonable value of t -- array values
+        // are ascending (or at least never descending) -- binary search is
+        // probably more trouble than it is worth here
+        for (int i = 1; i < SAMPLE_SIZE + 1; ++i) {
+            if (xSamples[i] >= x) {
+                double xRange = xSamples[i] - xSamples[i - 1];
+                if (xRange == 0) {
+                    // no change in value between samples, so use earlier time
+                    return (i - 1) * SAMPLE_INCREMENT;
+                } else {
+                    // linearly interpolate the time value
+                    return ((i - 1) + ((x - xSamples[i - 1]) / xRange))
+                           * SAMPLE_INCREMENT;
+                }
+            }
+        }
+
+        // shouldn't get here since 0 <= x <= 1, and xSamples[0] == 0 and
+        // xSamples[SAMPLE_SIZE] == 1 (using power of 2 SAMPLE_SIZE for more
+        // exact increment arithmetic)
+        return 1;
     }
 
 }

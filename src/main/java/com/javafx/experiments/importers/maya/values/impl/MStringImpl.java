@@ -46,11 +46,6 @@ public class MStringImpl extends MDataImpl implements MString {
     }
 
     @Override
-    public void set(String str) {
-        value = str;
-    }
-
-    @Override
     public String get() {
         return value;
     }
@@ -58,6 +53,11 @@ public class MStringImpl extends MDataImpl implements MString {
     @Override
     public void parse(Iterator<String> values) {
         value = values.next();
+    }
+
+    @Override
+    public void set(String str) {
+        value = str;
     }
 
     @Override

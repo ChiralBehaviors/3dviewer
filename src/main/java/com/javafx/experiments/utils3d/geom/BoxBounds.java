@@ -33,18 +33,18 @@
 package com.javafx.experiments.utils3d.geom;
 
 public class BoxBounds extends BaseBounds {
-    // minimum x value of boundining box
-    private float minX;
     // maximum x value of boundining box
     private float maxX;
-    // minimum y value of boundining box
-    private float minY;
     // maximum y value of boundining box
     private float maxY;
-    // minimum z value of boundining box
-    private float minZ;
     // maximum z value of boundining box
     private float maxZ;
+    // minimum x value of boundining box
+    private float minX;
+    // minimum y value of boundining box
+    private float minY;
+    // minimum z value of boundining box
+    private float minZ;
 
     /**
      * Create an axis aligned bounding box object, with an empty bounds where
@@ -55,9 +55,12 @@ public class BoxBounds extends BaseBounds {
         maxX = maxY = maxZ = -1.0f;
     }
 
-    @Override
-    public BaseBounds copy() {
-        return new BoxBounds(minX, minY, minZ, maxX, maxY, maxZ);
+    /**
+     * Creates an axis aligned bounding box as a copy of the specified BoxBounds
+     * object.
+     */
+    public BoxBounds(BoxBounds other) {
+        setBounds(other);
     }
 
     /**
@@ -69,168 +72,51 @@ public class BoxBounds extends BaseBounds {
         setBounds(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    /**
-     * Creates an axis aligned bounding box as a copy of the specified BoxBounds
-     * object.
-     */
-    public BoxBounds(BoxBounds other) {
-        setBounds(other);
+    @Override
+    public void add(float x, float y, float z) {
+        unionWith(x, y, z, x, y, z);
     }
 
     @Override
-    public BoundsType getBoundsType() {
-        return BoundsType.BOX;
+    public void add(Point2D p) {
+        add(p.x, p.y, 0.0f);
     }
 
     @Override
-    public boolean is2D() {
-        return false;
-    }
-
-    /**
-     * Convenience function for getting the width of this bounds. The dimension
-     * along the X-Axis.
-     */
-    @Override
-    public float getWidth() {
-        return maxX - minX;
-    }
-
-    /**
-     * Convenience function for getting the height of this bounds. The dimension
-     * along the Y-Axis.
-     */
-    @Override
-    public float getHeight() {
-        return maxY - minY;
-    }
-
-    /**
-     * Convenience function for getting the depth of this bounds. The dimension
-     * along the Z-Axis.
-     */
-    @Override
-    public float getDepth() {
-        return maxZ - minZ;
-    }
-
-    @Override
-    public float getMinX() {
-        return minX;
-    }
-
-    public void setMinX(float minX) {
-        this.minX = minX;
-    }
-
-    @Override
-    public float getMinY() {
-        return minY;
-    }
-
-    public void setMinY(float minY) {
-        this.minY = minY;
-    }
-
-    @Override
-    public float getMinZ() {
-        return minZ;
-    }
-
-    public void setMinZ(float minZ) {
-        this.minZ = minZ;
-    }
-
-    @Override
-    public float getMaxX() {
-        return maxX;
-    }
-
-    public void setMaxX(float maxX) {
-        this.maxX = maxX;
-    }
-
-    @Override
-    public float getMaxY() {
-        return maxY;
-    }
-
-    public void setMaxY(float maxY) {
-        this.maxY = maxY;
-    }
-
-    @Override
-    public float getMaxZ() {
-        return maxZ;
-    }
-
-    public void setMaxZ(float maxZ) {
-        this.maxZ = maxZ;
-    }
-
-    @Override
-    public Vec2f getMin(Vec2f min) {
-        if (min == null) {
-            min = new Vec2f();
+    public boolean contains(float x, float y) {
+        if (isEmpty()) {
+            return false;
         }
-        min.x = minX;
-        min.y = minY;
-        return min;
+        return contains(x, y, 0.0f);
+    }
+
+    public boolean contains(float x, float y, float z) {
+        if (isEmpty()) {
+            return false;
+        }
+        return (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ
+                && z <= maxZ);
+    }
+
+    public boolean contains(float x, float y, float z, float width,
+                            float height, float depth) {
+        if (isEmpty()) {
+            return false;
+        }
+        return contains(x, y, z) && contains(x + width, y + height, z + depth);
     }
 
     @Override
-    public Vec2f getMax(Vec2f max) {
-        if (max == null) {
-            max = new Vec2f();
+    public boolean contains(Point2D p) {
+        if ((p == null) || isEmpty()) {
+            return false;
         }
-        max.x = maxX;
-        max.y = maxY;
-        return max;
+        return contains(p.x, p.y, 0.0f);
     }
 
     @Override
-    public Vec3f getMin(Vec3f min) {
-        if (min == null) {
-            min = new Vec3f();
-        }
-        min.x = minX;
-        min.y = minY;
-        min.z = minZ;
-        return min;
-
-    }
-
-    @Override
-    public Vec3f getMax(Vec3f max) {
-        if (max == null) {
-            max = new Vec3f();
-        }
-        max.x = maxX;
-        max.y = maxY;
-        max.z = maxZ;
-        return max;
-
-    }
-
-    @Override
-    public BaseBounds deriveWithUnion(BaseBounds other) {
-        if ((other.getBoundsType() == BoundsType.RECTANGLE)
-            || (other.getBoundsType() == BoundsType.BOX)) {
-            unionWith(other);
-        } else {
-            throw new UnsupportedOperationException("Unknown BoundsType");
-        }
-        return this;
-    }
-
-    @Override
-    public BaseBounds deriveWithNewBounds(Rectangle other) {
-        if (other.width < 0 || other.height < 0) {
-            return makeEmpty();
-        }
-        setBounds(other.x, other.y, 0, other.x + other.width,
-                  other.y + other.height, 0);
-        return this;
+    public BaseBounds copy() {
+        return new BoxBounds(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     @Override
@@ -268,11 +154,83 @@ public class BoxBounds extends BaseBounds {
     }
 
     @Override
+    public BaseBounds deriveWithNewBounds(Rectangle other) {
+        if (other.width < 0 || other.height < 0) {
+            return makeEmpty();
+        }
+        setBounds(other.x, other.y, 0, other.x + other.width,
+                  other.y + other.height, 0);
+        return this;
+    }
+
+    @Override
     public BaseBounds deriveWithNewBoundsAndSort(float minX, float minY,
                                                  float minZ, float maxX,
                                                  float maxY, float maxZ) {
         setBoundsAndSort(minX, minY, minZ, maxX, maxY, maxZ);
         return this;
+    }
+
+    @Override
+    public BaseBounds deriveWithPadding(float h, float v, float d) {
+        grow(h, v, d);
+        return this;
+    }
+
+    @Override
+    public BaseBounds deriveWithUnion(BaseBounds other) {
+        if ((other.getBoundsType() == BoundsType.RECTANGLE)
+            || (other.getBoundsType() == BoundsType.BOX)) {
+            unionWith(other);
+        } else {
+            throw new UnsupportedOperationException("Unknown BoundsType");
+        }
+        return this;
+    }
+
+    @Override
+    public boolean disjoint(float x, float y, float width, float height) {
+        return disjoint(x, y, 0f, width, height, 0f);
+    }
+
+    public boolean disjoint(float x, float y, float z, float width,
+                            float height, float depth) {
+        if (isEmpty()) {
+            return true;
+        }
+        return (x + width < minX || y + height < minY || z + depth < minZ
+                || x > maxX || y > maxY || z > maxZ);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+
+        final BoxBounds other = (BoxBounds) obj;
+        if (minX != other.getMinX()) {
+            return false;
+        }
+        if (minY != other.getMinY()) {
+            return false;
+        }
+        if (minZ != other.getMinZ()) {
+            return false;
+        }
+        if (maxX != other.getMaxX()) {
+            return false;
+        }
+        if (maxY != other.getMaxY()) {
+            return false;
+        }
+        if (maxZ != other.getMaxZ()) {
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -290,96 +248,155 @@ public class BoxBounds extends BaseBounds {
         return bounds;
     }
 
-    /**
-     * Set the bounds to match that of the BaseBounds object specified. The
-     * specified bounds object must not be null.
-     */
-    public final void setBounds(BaseBounds other) {
-        minX = other.getMinX();
-        minY = other.getMinY();
-        minZ = other.getMinZ();
-        maxX = other.getMaxX();
-        maxY = other.getMaxY();
-        maxZ = other.getMaxZ();
+    @Override
+    public BoundsType getBoundsType() {
+        return BoundsType.BOX;
     }
 
     /**
-     * Set the bounds to the given values.
+     * Convenience function for getting the depth of this bounds. The dimension
+     * along the Z-Axis.
      */
-    public final void setBounds(float minX, float minY, float minZ, float maxX,
-                                float maxY, float maxZ) {
-        this.minX = minX;
-        this.minY = minY;
-        this.minZ = minZ;
-        this.maxX = maxX;
-        this.maxY = maxY;
-        this.maxZ = maxZ;
+    @Override
+    public float getDepth() {
+        return maxZ - minZ;
+    }
+
+    /**
+     * Convenience function for getting the height of this bounds. The dimension
+     * along the Y-Axis.
+     */
+    @Override
+    public float getHeight() {
+        return maxY - minY;
     }
 
     @Override
-    public void setBoundsAndSort(float minX, float minY, float minZ, float maxX,
-                                 float maxY, float maxZ) {
-        setBounds(minX, minY, minZ, maxX, maxY, maxZ);
-        sortMinMax();
-    }
-
-    @Override
-    public void setBoundsAndSort(Point2D p1, Point2D p2) {
-        setBoundsAndSort(p1.x, p1.y, 0.0f, p2.x, p2.y, 0.0f);
-    }
-
-    public void unionWith(BaseBounds other) {
-        // Short circuit union if either bounds is empty.
-        if (other.isEmpty()) {
-            return;
+    public Vec2f getMax(Vec2f max) {
+        if (max == null) {
+            max = new Vec2f();
         }
-        if (this.isEmpty()) {
-            setBounds(other);
-            return;
-        }
-
-        minX = Math.min(minX, other.getMinX());
-        minY = Math.min(minY, other.getMinY());
-        minZ = Math.min(minZ, other.getMinZ());
-        maxX = Math.max(maxX, other.getMaxX());
-        maxY = Math.max(maxY, other.getMaxY());
-        maxZ = Math.max(maxZ, other.getMaxZ());
-    }
-
-    public void unionWith(float minX, float minY, float minZ, float maxX,
-                          float maxY, float maxZ) {
-        // Short circuit union if either bounds is empty.
-        if ((maxX < minX) || (maxY < minY) || (maxZ < minZ)) {
-            return;
-        }
-        if (this.isEmpty()) {
-            setBounds(minX, minY, minZ, maxX, maxY, maxZ);
-            return;
-        }
-
-        this.minX = Math.min(this.minX, minX);
-        this.minY = Math.min(this.minY, minY);
-        this.minZ = Math.min(this.minZ, minZ);
-        this.maxX = Math.max(this.maxX, maxX);
-        this.maxY = Math.max(this.maxY, maxY);
-        this.maxZ = Math.max(this.maxZ, maxZ);
+        max.x = maxX;
+        max.y = maxY;
+        return max;
     }
 
     @Override
-    public void add(float x, float y, float z) {
-        unionWith(x, y, z, x, y, z);
+    public Vec3f getMax(Vec3f max) {
+        if (max == null) {
+            max = new Vec3f();
+        }
+        max.x = maxX;
+        max.y = maxY;
+        max.z = maxZ;
+        return max;
+
     }
 
     @Override
-    public void add(Point2D p) {
-        add(p.x, p.y, 0.0f);
+    public float getMaxX() {
+        return maxX;
     }
 
     @Override
-    public void intersectWith(Rectangle other) {
-        float x = other.x;
-        float y = other.y;
-        intersectWith(x, y, 0, x + other.width, y + other.height, 0);
+    public float getMaxY() {
+        return maxY;
+    }
+
+    @Override
+    public float getMaxZ() {
+        return maxZ;
+    }
+
+    @Override
+    public Vec2f getMin(Vec2f min) {
+        if (min == null) {
+            min = new Vec2f();
+        }
+        min.x = minX;
+        min.y = minY;
+        return min;
+    }
+
+    @Override
+    public Vec3f getMin(Vec3f min) {
+        if (min == null) {
+            min = new Vec3f();
+        }
+        min.x = minX;
+        min.y = minY;
+        min.z = minZ;
+        return min;
+
+    }
+
+    @Override
+    public float getMinX() {
+        return minX;
+    }
+
+    @Override
+    public float getMinY() {
+        return minY;
+    }
+
+    @Override
+    public float getMinZ() {
+        return minZ;
+    }
+
+    /**
+     * Convenience function for getting the width of this bounds. The dimension
+     * along the X-Axis.
+     */
+    @Override
+    public float getWidth() {
+        return maxX - minX;
+    }
+
+    public void grow(float h, float v, float d) {
+        minX -= h;
+        maxX += h;
+        minY -= v;
+        maxY += v;
+        minZ -= d;
+        maxZ += d;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 79 * hash + Float.floatToIntBits(minX);
+        hash = 79 * hash + Float.floatToIntBits(minY);
+        hash = 79 * hash + Float.floatToIntBits(minZ);
+        hash = 79 * hash + Float.floatToIntBits(maxX);
+        hash = 79 * hash + Float.floatToIntBits(maxY);
+        hash = 79 * hash + Float.floatToIntBits(maxZ);
+
+        return hash;
+    }
+
+    public boolean intersects(BaseBounds other) {
+        if ((other == null) || other.isEmpty() || isEmpty()) {
+            return false;
+        }
+        return (other.getMaxX() >= minX && other.getMaxY() >= minY
+                && other.getMaxZ() >= minZ && other.getMinX() <= maxX
+                && other.getMinY() <= maxY && other.getMinZ() <= maxZ);
+    }
+
+    @Override
+    public boolean intersects(float x, float y, float width, float height) {
+        return intersects(x, y, 0.0f, width, height, 0.0f);
+    }
+
+    public boolean intersects(float x, float y, float z, float width,
+                              float height, float depth) {
+        if (isEmpty()) {
+            return false;
+        }
+        return (x + width >= minX && y + height >= minY && z + depth >= minZ
+                && x <= maxX && y <= maxY && z <= maxZ);
     }
 
     @Override
@@ -422,77 +439,30 @@ public class BoxBounds extends BaseBounds {
     }
 
     @Override
-    public boolean contains(Point2D p) {
-        if ((p == null) || isEmpty()) {
-            return false;
-        }
-        return contains(p.x, p.y, 0.0f);
+    public void intersectWith(Rectangle other) {
+        float x = other.x;
+        float y = other.y;
+        intersectWith(x, y, 0, x + other.width, y + other.height, 0);
     }
 
     @Override
-    public boolean contains(float x, float y) {
-        if (isEmpty()) {
-            return false;
-        }
-        return contains(x, y, 0.0f);
-    }
-
-    public boolean contains(float x, float y, float z) {
-        if (isEmpty()) {
-            return false;
-        }
-        return (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ
-                && z <= maxZ);
-    }
-
-    public boolean contains(float x, float y, float z, float width,
-                            float height, float depth) {
-        if (isEmpty()) {
-            return false;
-        }
-        return contains(x, y, z) && contains(x + width, y + height, z + depth);
-    }
-
-    @Override
-    public boolean intersects(float x, float y, float width, float height) {
-        return intersects(x, y, 0.0f, width, height, 0.0f);
-    }
-
-    public boolean intersects(float x, float y, float z, float width,
-                              float height, float depth) {
-        if (isEmpty()) {
-            return false;
-        }
-        return (x + width >= minX && y + height >= minY && z + depth >= minZ
-                && x <= maxX && y <= maxY && z <= maxZ);
-    }
-
-    public boolean intersects(BaseBounds other) {
-        if ((other == null) || other.isEmpty() || isEmpty()) {
-            return false;
-        }
-        return (other.getMaxX() >= minX && other.getMaxY() >= minY
-                && other.getMaxZ() >= minZ && other.getMinX() <= maxX
-                && other.getMinY() <= maxY && other.getMinZ() <= maxZ);
-    }
-
-    @Override
-    public boolean disjoint(float x, float y, float width, float height) {
-        return disjoint(x, y, 0f, width, height, 0f);
-    }
-
-    public boolean disjoint(float x, float y, float z, float width,
-                            float height, float depth) {
-        if (isEmpty()) {
-            return true;
-        }
-        return (x + width < minX || y + height < minY || z + depth < minZ
-                || x > maxX || y > maxY || z > maxZ);
+    public boolean is2D() {
+        return false;
     }
 
     @Override
     public boolean isEmpty() {
         return maxX < minX || maxY < minY || maxZ < minZ;
+    }
+
+    // for convenience, this function returns a reference to itself, so we can
+    // change from using "bounds.makeEmpty(); return bounds;" to just
+    // "return bounds.makeEmpty()"
+    @Override
+    public BoxBounds makeEmpty() {
+        minX = minY = minZ = 0.0f;
+        maxX = maxY = maxZ = -1.0f;
+        return this;
     }
 
     /**
@@ -510,29 +480,117 @@ public class BoxBounds extends BaseBounds {
         maxZ = (float) Math.ceil(maxZ);
     }
 
-    public void grow(float h, float v, float d) {
-        minX -= h;
-        maxX += h;
-        minY -= v;
-        maxY += v;
-        minZ -= d;
-        maxZ += d;
+    /**
+     * Set the bounds to match that of the BaseBounds object specified. The
+     * specified bounds object must not be null.
+     */
+    public final void setBounds(BaseBounds other) {
+        minX = other.getMinX();
+        minY = other.getMinY();
+        minZ = other.getMinZ();
+        maxX = other.getMaxX();
+        maxY = other.getMaxY();
+        maxZ = other.getMaxZ();
+    }
+
+    /**
+     * Set the bounds to the given values.
+     */
+    public final void setBounds(float minX, float minY, float minZ, float maxX,
+                                float maxY, float maxZ) {
+        this.minX = minX;
+        this.minY = minY;
+        this.minZ = minZ;
+        this.maxX = maxX;
+        this.maxY = maxY;
+        this.maxZ = maxZ;
     }
 
     @Override
-    public BaseBounds deriveWithPadding(float h, float v, float d) {
-        grow(h, v, d);
-        return this;
+    public void setBoundsAndSort(float minX, float minY, float minZ, float maxX,
+                                 float maxY, float maxZ) {
+        setBounds(minX, minY, minZ, maxX, maxY, maxZ);
+        sortMinMax();
     }
 
-    // for convenience, this function returns a reference to itself, so we can
-    // change from using "bounds.makeEmpty(); return bounds;" to just
-    // "return bounds.makeEmpty()"
     @Override
-    public BoxBounds makeEmpty() {
-        minX = minY = minZ = 0.0f;
-        maxX = maxY = maxZ = -1.0f;
-        return this;
+    public void setBoundsAndSort(Point2D p1, Point2D p2) {
+        setBoundsAndSort(p1.x, p1.y, 0.0f, p2.x, p2.y, 0.0f);
+    }
+
+    public void setMaxX(float maxX) {
+        this.maxX = maxX;
+    }
+
+    public void setMaxY(float maxY) {
+        this.maxY = maxY;
+    }
+
+    public void setMaxZ(float maxZ) {
+        this.maxZ = maxZ;
+    }
+
+    public void setMinX(float minX) {
+        this.minX = minX;
+    }
+
+    public void setMinY(float minY) {
+        this.minY = minY;
+    }
+
+    public void setMinZ(float minZ) {
+        this.minZ = minZ;
+    }
+
+    @Override
+    public String toString() {
+        return "BoxBounds { minX:" + minX + ", minY:" + minY + ", minZ:" + minZ
+               + ", maxX:" + maxX + ", maxY:" + maxY + ", maxZ:" + maxZ + "}";
+    }
+
+    @Override
+    public void translate(float x, float y, float z) {
+        setMinX(getMinX() + x);
+        setMinY(getMinY() + y);
+        setMaxX(getMaxX() + x);
+        setMaxY(getMaxY() + y);
+    }
+
+    public void unionWith(BaseBounds other) {
+        // Short circuit union if either bounds is empty.
+        if (other.isEmpty()) {
+            return;
+        }
+        if (this.isEmpty()) {
+            setBounds(other);
+            return;
+        }
+
+        minX = Math.min(minX, other.getMinX());
+        minY = Math.min(minY, other.getMinY());
+        minZ = Math.min(minZ, other.getMinZ());
+        maxX = Math.max(maxX, other.getMaxX());
+        maxY = Math.max(maxY, other.getMaxY());
+        maxZ = Math.max(maxZ, other.getMaxZ());
+    }
+
+    public void unionWith(float minX, float minY, float minZ, float maxX,
+                          float maxY, float maxZ) {
+        // Short circuit union if either bounds is empty.
+        if ((maxX < minX) || (maxY < minY) || (maxZ < minZ)) {
+            return;
+        }
+        if (this.isEmpty()) {
+            setBounds(minX, minY, minZ, maxX, maxY, maxZ);
+            return;
+        }
+
+        this.minX = Math.min(this.minX, minX);
+        this.minY = Math.min(this.minY, minY);
+        this.minZ = Math.min(this.minZ, minZ);
+        this.maxX = Math.max(this.maxX, maxX);
+        this.maxY = Math.max(this.maxY, maxY);
+        this.maxZ = Math.max(this.maxZ, maxZ);
     }
 
     @Override
@@ -552,64 +610,6 @@ public class BoxBounds extends BaseBounds {
             maxZ = minZ;
             minZ = tmp;
         }
-    }
-
-    @Override
-    public void translate(float x, float y, float z) {
-        setMinX(getMinX() + x);
-        setMinY(getMinY() + y);
-        setMaxX(getMaxX() + x);
-        setMaxY(getMaxY() + y);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-
-        final BoxBounds other = (BoxBounds) obj;
-        if (minX != other.getMinX()) {
-            return false;
-        }
-        if (minY != other.getMinY()) {
-            return false;
-        }
-        if (minZ != other.getMinZ()) {
-            return false;
-        }
-        if (maxX != other.getMaxX()) {
-            return false;
-        }
-        if (maxY != other.getMaxY()) {
-            return false;
-        }
-        if (maxZ != other.getMaxZ()) {
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 7;
-        hash = 79 * hash + Float.floatToIntBits(minX);
-        hash = 79 * hash + Float.floatToIntBits(minY);
-        hash = 79 * hash + Float.floatToIntBits(minZ);
-        hash = 79 * hash + Float.floatToIntBits(maxX);
-        hash = 79 * hash + Float.floatToIntBits(maxY);
-        hash = 79 * hash + Float.floatToIntBits(maxZ);
-
-        return hash;
-    }
-
-    @Override
-    public String toString() {
-        return "BoxBounds { minX:" + minX + ", minY:" + minY + ", minZ:" + minZ
-               + ", maxX:" + maxX + ", maxY:" + maxY + ", maxZ:" + maxZ + "}";
     }
 
 }

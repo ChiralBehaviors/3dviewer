@@ -65,9 +65,149 @@ import javafx.scene.transform.Translate;
 /** Export a 3D MeshView to FXML file. */
 public class FXMLExporter {
 
-    private PrintWriter         printWriter;
-    private Set<String>         imports     = new TreeSet<>();
-    private Map<String, String> simpleNames = new HashMap<>();
+    private class FXML {
+        private class Entry {
+            String key;
+            String value;
+
+            public Entry(String key, String value) {
+                this.key = key;
+                this.value = value;
+            }
+        }
+
+        List<FXML>     nested;
+        List<Entry>    properties;
+        Object         value;
+
+        private String tagName;
+
+        public FXML(Class<? extends Object> cls) {
+            String fullName = simpleNames.get(cls.getSimpleName());
+            if (fullName == null) {
+
+                // this short name is not used, so adding it to imports and
+                // to shortNames map
+                fullName = cls.getName();
+                imports.add(cls.getPackage()
+                               .getName());
+                simpleNames.put(cls.getSimpleName(), fullName);
+                tagName = cls.getSimpleName();
+            } else if (!fullName.equals(cls.getName())) {
+
+                // short name is already used for some other class so we have
+                // to use full name
+                tagName = cls.getName();
+            } else {
+
+                // short name matches this class
+                tagName = cls.getSimpleName();
+            }
+        }
+
+        public FXML(String tagName) {
+            this.tagName = tagName;
+        }
+
+        void addProperty(String key, String value) {
+            if (properties == null) {
+                properties = new ArrayList<>();
+            }
+            properties.add(new Entry(key, value));
+        }
+
+        void export(String indent) {
+            printWriter.append(indent)
+                       .append('<')
+                       .append(tagName);
+            if (properties != null) {
+                for (Entry entry : properties) {
+                    printWriter.append(' ')
+                               .append(entry.key)
+                               .append("=\"")
+                               .append(entry.value)
+                               .append("\"");
+                }
+            }
+            if (nested != null || value != null) {
+                printWriter.append(">\n");
+                String indent1 = indent + "  ";
+                if (nested != null) {
+                    for (FXML fxml : nested) {
+                        fxml.export(indent1);
+                    }
+                }
+                if (value != null) {
+                    String toString;
+                    if (value instanceof ObservableArray) {
+                        toString = value.toString();
+                    } else {
+                        throw new UnsupportedOperationException("Only ObservableArrays are currently supported");
+                    }
+                    printWriter.append(indent1)
+                               .append(toString.substring(1,
+                                                          toString.length()
+                                                             - 1))
+                               .append("\n");
+                }
+                printWriter.append(indent)
+                           .append("</")
+                           .append(tagName)
+                           .append(">\n");
+            } else {
+                printWriter.append("/>\n");
+            }
+        }
+
+        void setValue(Object value) {
+            this.value = value;
+        }
+
+        private void addChild(FXML fxml) {
+            if (fxml == null) {
+                return;
+            }
+            if (nested == null) {
+                nested = new ArrayList<>();
+            }
+            nested.add(fxml);
+        }
+
+        private FXML addContainer(String containerTag) {
+            if (nested != null) {
+                for (FXML n : nested) {
+                    if (n.tagName.equals(containerTag)) {
+                        return n;
+                    }
+                }
+            }
+            FXML fxml = new FXML(containerTag);
+            addChild(fxml);
+            return fxml;
+        }
+    }
+
+    private class Property {
+        Method getter;
+        String name;
+
+        public Property(Method getter, String name) {
+            this.getter = getter;
+            this.name = name;
+        }
+    }
+
+    private Set<String>                   imports         = new TreeSet<>();
+
+    private PrintWriter                   printWriter;
+
+    private Map<Class<?>, List<Property>> propertiesCache = new HashMap<>();
+
+    private Map<String, String>           simpleNames     = new HashMap<>();
+
+    public FXMLExporter(OutputStream outputStream) {
+        printWriter = new PrintWriter(outputStream);
+    }
 
     public FXMLExporter(String filename) {
         File file = new File(filename);
@@ -80,10 +220,6 @@ public class FXMLExporter {
         }
     }
 
-    public FXMLExporter(OutputStream outputStream) {
-        printWriter = new PrintWriter(outputStream);
-    }
-
     public void export(Node node) {
         printWriter.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         FXML fxmlTree = exportToFXML(node);
@@ -93,6 +229,58 @@ public class FXMLExporter {
         printWriter.println();
         fxmlTree.export("");
         printWriter.close();
+    }
+
+    private FXML exportToFXML(Object object) {
+        if (object instanceof Transform && ((Transform) object).isIdentity()) {
+            return null;
+        }
+
+        FXML fxml = new FXML(object.getClass());
+
+        List<Property> properties = propertiesCache.get(object.getClass());
+        if (properties == null) {
+            properties = getProperties(object.getClass());
+            propertiesCache.put(object.getClass(), properties);
+        }
+
+        for (Property property : properties) {
+            try {
+                Object[] parameters = new Object[property.getter.getParameterTypes().length];
+                Object value = property.getter.invoke(object, parameters);
+                if (value != null) {
+                    if (value instanceof Collection) {
+                        Collection<?> collection = (Collection<?>) value;
+                        if (!collection.isEmpty()) {
+                            FXML container = fxml.addContainer(property.name);
+                            for (Object item : collection) {
+                                container.addChild(exportToFXML(item));
+                            }
+                        }
+                    } else if (value instanceof ObservableArray) {
+                        int length = ((ObservableArray<?>) value).size();
+                        if (length > 0) {
+                            FXML container = fxml.addContainer(property.name);
+                            container.setValue(value);
+                        }
+                    } else if (property.getter.getReturnType()
+                                              .isPrimitive()
+                               || String.class.equals(value.getClass())
+                               || Color.class.equals(value.getClass())) {
+                        fxml.addProperty(property.name, String.valueOf(value));
+                    } else {
+                        FXML container = fxml.addContainer(property.name);
+                        container.addChild(exportToFXML(value));
+                    }
+                }
+            } catch (IllegalAccessException | IllegalArgumentException
+                    | InvocationTargetException ex) {
+                Logger.getLogger(FXMLExporter.class.getName())
+                      .log(Level.SEVERE, null, ex);
+            }
+        }
+
+        return fxml;
     }
 
     private List<Property> getProperties(Class<? extends Object> aClass) {
@@ -164,191 +352,6 @@ public class FXMLExporter {
                   .log(Level.SEVERE, null, ex);
         }
         return res;
-    }
-
-    private Map<Class<?>, List<Property>> propertiesCache = new HashMap<>();
-
-    private class Property {
-        Method getter;
-        String name;
-
-        public Property(Method getter, String name) {
-            this.getter = getter;
-            this.name = name;
-        }
-    }
-
-    private FXML exportToFXML(Object object) {
-        if (object instanceof Transform && ((Transform) object).isIdentity()) {
-            return null;
-        }
-
-        FXML fxml = new FXML(object.getClass());
-
-        List<Property> properties = propertiesCache.get(object.getClass());
-        if (properties == null) {
-            properties = getProperties(object.getClass());
-            propertiesCache.put(object.getClass(), properties);
-        }
-
-        for (Property property : properties) {
-            try {
-                Object[] parameters = new Object[property.getter.getParameterTypes().length];
-                Object value = property.getter.invoke(object, parameters);
-                if (value != null) {
-                    if (value instanceof Collection) {
-                        Collection<?> collection = (Collection<?>) value;
-                        if (!collection.isEmpty()) {
-                            FXML container = fxml.addContainer(property.name);
-                            for (Object item : collection) {
-                                container.addChild(exportToFXML(item));
-                            }
-                        }
-                    } else if (value instanceof ObservableArray) {
-                        int length = ((ObservableArray<?>) value).size();
-                        if (length > 0) {
-                            FXML container = fxml.addContainer(property.name);
-                            container.setValue(value);
-                        }
-                    } else if (property.getter.getReturnType()
-                                              .isPrimitive()
-                               || String.class.equals(value.getClass())
-                               || Color.class.equals(value.getClass())) {
-                        fxml.addProperty(property.name, String.valueOf(value));
-                    } else {
-                        FXML container = fxml.addContainer(property.name);
-                        container.addChild(exportToFXML(value));
-                    }
-                }
-            } catch (IllegalAccessException | IllegalArgumentException
-                    | InvocationTargetException ex) {
-                Logger.getLogger(FXMLExporter.class.getName())
-                      .log(Level.SEVERE, null, ex);
-            }
-        }
-
-        return fxml;
-    }
-
-    private class FXML {
-        private String tagName;
-        List<Entry>    properties;
-        List<FXML>     nested;
-        Object         value;
-
-        private FXML addContainer(String containerTag) {
-            if (nested != null) {
-                for (FXML n : nested) {
-                    if (n.tagName.equals(containerTag)) {
-                        return n;
-                    }
-                }
-            }
-            FXML fxml = new FXML(containerTag);
-            addChild(fxml);
-            return fxml;
-        }
-
-        public FXML(String tagName) {
-            this.tagName = tagName;
-        }
-
-        public FXML(Class<? extends Object> cls) {
-            String fullName = simpleNames.get(cls.getSimpleName());
-            if (fullName == null) {
-
-                // this short name is not used, so adding it to imports and
-                // to shortNames map
-                fullName = cls.getName();
-                imports.add(cls.getPackage()
-                               .getName());
-                simpleNames.put(cls.getSimpleName(), fullName);
-                tagName = cls.getSimpleName();
-            } else if (!fullName.equals(cls.getName())) {
-
-                // short name is already used for some other class so we have
-                // to use full name
-                tagName = cls.getName();
-            } else {
-
-                // short name matches this class
-                tagName = cls.getSimpleName();
-            }
-        }
-
-        private class Entry {
-            String key;
-            String value;
-
-            public Entry(String key, String value) {
-                this.key = key;
-                this.value = value;
-            }
-        }
-
-        void setValue(Object value) {
-            this.value = value;
-        }
-
-        void addProperty(String key, String value) {
-            if (properties == null) {
-                properties = new ArrayList<>();
-            }
-            properties.add(new Entry(key, value));
-        }
-
-        void export(String indent) {
-            printWriter.append(indent)
-                       .append('<')
-                       .append(tagName);
-            if (properties != null) {
-                for (Entry entry : properties) {
-                    printWriter.append(' ')
-                               .append(entry.key)
-                               .append("=\"")
-                               .append(entry.value)
-                               .append("\"");
-                }
-            }
-            if (nested != null || value != null) {
-                printWriter.append(">\n");
-                String indent1 = indent + "  ";
-                if (nested != null) {
-                    for (FXML fxml : nested) {
-                        fxml.export(indent1);
-                    }
-                }
-                if (value != null) {
-                    String toString;
-                    if (value instanceof ObservableArray) {
-                        toString = value.toString();
-                    } else {
-                        throw new UnsupportedOperationException("Only ObservableArrays are currently supported");
-                    }
-                    printWriter.append(indent1)
-                               .append(toString.substring(1,
-                                                          toString.length()
-                                                             - 1))
-                               .append("\n");
-                }
-                printWriter.append(indent)
-                           .append("</")
-                           .append(tagName)
-                           .append(">\n");
-            } else {
-                printWriter.append("/>\n");
-            }
-        }
-
-        private void addChild(FXML fxml) {
-            if (fxml == null) {
-                return;
-            }
-            if (nested == null) {
-                nested = new ArrayList<>();
-            }
-            nested.add(fxml);
-        }
     }
 
 }

@@ -36,37 +36,6 @@ import java.util.List;
 
 public interface MComponentList extends MData {
     public static class Component {
-        // Ideally we would have an enum of these, but we don't know all of the mappings yet.
-        // The possible values are listed in MFn::Type (MFn.h), but not the names.
-        // Here are some, derived by using the Maya selection tool and
-        // watching the script editor output:
-        //   "f[i]"          -> faces
-        //   "vtx[i]"        -> vertices
-        //   "e[i]"          -> edges
-        //   "map[i]"        -> uvs
-        //   "vtxFace[i][j]" -> vertices within faces
-        private String name;
-        private int    startIndex; // Or -1 if "all"
-        private int    endIndex;   // Inclusive
-
-        public String name() {
-            return name;
-        }
-
-        public int startIndex() {
-            return startIndex;
-        }
-
-        public int endIndex() {
-            return endIndex;
-        }
-
-        public Component(String name, int startIndex, int endIndex) {
-            this.name = name;
-            this.startIndex = startIndex;
-            this.endIndex = endIndex;
-        }
-
         public static Component parse(String str) {
             String name = null;
             int startIndex = 0;
@@ -106,6 +75,38 @@ public interface MComponentList extends MData {
             return new Component(name, startIndex, endIndex);
         }
 
+        private int    endIndex;   // Inclusive
+        // Ideally we would have an enum of these, but we don't know all of the mappings yet.
+        // The possible values are listed in MFn::Type (MFn.h), but not the names.
+        // Here are some, derived by using the Maya selection tool and
+        // watching the script editor output:
+        //   "f[i]"          -> faces
+        //   "vtx[i]"        -> vertices
+        //   "e[i]"          -> edges
+        //   "map[i]"        -> uvs
+        //   "vtxFace[i][j]" -> vertices within faces
+        private String name;
+
+        private int    startIndex; // Or -1 if "all"
+
+        public Component(String name, int startIndex, int endIndex) {
+            this.name = name;
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+        }
+
+        public int endIndex() {
+            return endIndex;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public int startIndex() {
+            return startIndex;
+        }
+
         @Override
         public String toString() {
             StringBuffer buf = new StringBuffer();
@@ -125,7 +126,7 @@ public interface MComponentList extends MData {
         }
     }
 
-    public void set(List<Component> value);
-
     public List<Component> get();
+
+    public void set(List<Component> value);
 }

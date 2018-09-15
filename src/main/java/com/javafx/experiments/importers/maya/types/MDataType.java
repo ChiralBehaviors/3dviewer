@@ -41,10 +41,10 @@ public abstract class MDataType extends MObject {
         super(env, name);
     }
 
-    public abstract MData createData();
-
     @Override
     public void accept(MEnv.Visitor visitor) {
         visitor.visitDataType(this);
     }
+
+    public abstract MData createData();
 }

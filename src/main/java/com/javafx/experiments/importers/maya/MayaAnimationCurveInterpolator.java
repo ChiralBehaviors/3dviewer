@@ -40,10 +40,10 @@ import javafx.animation.Interpolator;
  */
 class MayaAnimationCurveInterpolator extends Interpolator {
 
+    public String debug;       // hack
     float         p1Delta;
     float         p2Delta;
     boolean       zeroDuration;
-    public String debug;       // hack
 
     //=========================================================================
     // MayaAnimationCurveInterpolator

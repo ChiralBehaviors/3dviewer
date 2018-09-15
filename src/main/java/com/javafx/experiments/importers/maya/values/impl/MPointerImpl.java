@@ -48,9 +48,8 @@ public class MPointerImpl extends MDataImpl implements MPointer {
         super(type);
     }
 
-    @Override
-    public void setTarget(MPath path) {
-        target = path;
+    public MData get() {
+        return target.apply();
     }
 
     @Override
@@ -58,17 +57,23 @@ public class MPointerImpl extends MDataImpl implements MPointer {
         return target;
     }
 
-    public void set(MData data) {
-        //targetNode.setAttr(targetAttribute, data);
-    }
-
-    public MData get() {
-        return target.apply();
+    @Override
+    public MNode getTargetNode() {
+        return target.getTargetNode();
     }
 
     @Override
     public void parse(Iterator<String> iter) {
         // Nothing
+    }
+
+    public void set(MData data) {
+        //targetNode.setAttr(targetAttribute, data);
+    }
+
+    @Override
+    public void setTarget(MPath path) {
+        target = path;
     }
 
     @Override
@@ -78,10 +83,5 @@ public class MPointerImpl extends MDataImpl implements MPointer {
         } else {
             return "Null Pointer";
         }
-    }
-
-    @Override
-    public MNode getTargetNode() {
-        return target.getTargetNode();
     }
 }

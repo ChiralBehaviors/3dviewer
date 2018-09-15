@@ -44,10 +44,7 @@ import javafx.scene.transform.Translate;
  * A Group that auto scales its self to fit its content in a given size box.
  */
 public class AutoScalingGroup extends Group {
-    private double                twoSize;
     private boolean               autoScale = false;
-    private Translate             translate = new Translate(0, 0, 0);
-    private Scale                 scale     = new Scale(1, 1, 1, 0, 0, 0);
     private SimpleBooleanProperty enabled   = new SimpleBooleanProperty(false) {
                                                 @Override
                                                 protected void invalidated() {
@@ -59,6 +56,9 @@ public class AutoScalingGroup extends Group {
                                                     }
                                                 }
                                             };
+    private Scale                 scale     = new Scale(1, 1, 1, 0, 0, 0);
+    private Translate             translate = new Translate(0, 0, 0);
+    private double                twoSize;
 
     /**
      * Create AutoScalingGroup
@@ -72,21 +72,21 @@ public class AutoScalingGroup extends Group {
     }
 
     /**
-     * Get is auto scaling enabled
-     *
-     * @return true if auto scaling is enabled
-     */
-    public boolean isEnabled() {
-        return enabled.get();
-    }
-
-    /**
      * Get enabled property
      *
      * @return enabled property
      */
     public SimpleBooleanProperty enabledProperty() {
         return enabled;
+    }
+
+    /**
+     * Get is auto scaling enabled
+     *
+     * @return true if auto scaling is enabled
+     */
+    public boolean isEnabled() {
+        return enabled.get();
     }
 
     /**

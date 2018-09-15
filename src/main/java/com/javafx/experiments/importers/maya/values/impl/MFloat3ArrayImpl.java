@@ -40,7 +40,47 @@ import com.javafx.experiments.importers.maya.values.MFloat3Array;
 
 public class MFloat3ArrayImpl extends MDataImpl implements MFloat3Array {
 
-    private float[] data;
+    static class MFloat3ArraySlice extends MDataImpl implements MFloat3Array {
+        private MFloat3Array array;
+        private int          base;
+        private int          length;
+
+        MFloat3ArraySlice(MFloat3Array array, int base, int length) {
+            super(array.getType());
+            this.array = array;
+            this.base = base;
+            this.length = length;
+        }
+
+        @Override
+        public float[] get() {
+            // FIXME
+            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
+        }
+
+        @Override
+        public int getSize() {
+            return length;
+        }
+
+        @Override
+        public void parse(Iterator<String> elements) {
+            new Parser(this).parse(elements);
+        }
+
+        @Override
+        public void set(int index, float x, float y, float z) {
+            if (index >= length) {
+                throw new ArrayIndexOutOfBoundsException(index);
+            }
+            array.set(base + index, x, y, z);
+        }
+
+        @Override
+        public void setSize(int size) {
+            array.setSize(base + size);
+        }
+    }
 
     static class Parser {
         private MFloat3Array array;
@@ -59,73 +99,10 @@ public class MFloat3ArrayImpl extends MDataImpl implements MFloat3Array {
         }
     }
 
-    static class MFloat3ArraySlice extends MDataImpl implements MFloat3Array {
-        private MFloat3Array array;
-        private int          base;
-        private int          length;
-
-        MFloat3ArraySlice(MFloat3Array array, int base, int length) {
-            super(array.getType());
-            this.array = array;
-            this.base = base;
-            this.length = length;
-        }
-
-        @Override
-        public void setSize(int size) {
-            array.setSize(base + size);
-        }
-
-        @Override
-        public int getSize() {
-            return length;
-        }
-
-        @Override
-        public void set(int index, float x, float y, float z) {
-            if (index >= length) {
-                throw new ArrayIndexOutOfBoundsException(index);
-            }
-            array.set(base + index, x, y, z);
-        }
-
-        @Override
-        public float[] get() {
-            // FIXME
-            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
-        }
-
-        @Override
-        public void parse(Iterator<String> elements) {
-            new Parser(this).parse(elements);
-        }
-    }
+    private float[] data;
 
     public MFloat3ArrayImpl(MFloat3ArrayType type) {
         super(type);
-    }
-
-    @Override
-    public void setSize(int size) {
-        if (data == null || 3 * size > data.length) {
-            float[] newdata = new float[3 * size];
-            if (data != null) {
-                System.arraycopy(data, 0, newdata, 0, data.length);
-            }
-            data = newdata;
-        }
-    }
-
-    @Override
-    public void set(int index, float x, float y, float z) {
-        data[3 * index + 0] = x;
-        data[3 * index + 1] = y;
-        data[3 * index + 2] = z;
-    }
-
-    @Override
-    public int getSize() {
-        return data == null ? 0 : data.length / 3;
     }
 
     @Override
@@ -145,8 +122,31 @@ public class MFloat3ArrayImpl extends MDataImpl implements MFloat3Array {
     }
 
     @Override
+    public int getSize() {
+        return data == null ? 0 : data.length / 3;
+    }
+
+    @Override
     public void parse(Iterator<String> elements) {
         new Parser(this).parse(elements);
+    }
+
+    @Override
+    public void set(int index, float x, float y, float z) {
+        data[3 * index + 0] = x;
+        data[3 * index + 1] = y;
+        data[3 * index + 2] = z;
+    }
+
+    @Override
+    public void setSize(int size) {
+        if (data == null || 3 * size > data.length) {
+            float[] newdata = new float[3 * size];
+            if (data != null) {
+                System.arraycopy(data, 0, newdata, 0, data.length);
+            }
+            data = newdata;
+        }
     }
 
     @Override

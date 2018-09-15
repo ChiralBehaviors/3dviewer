@@ -66,49 +66,6 @@ import javafx.scene.transform.Translate;
  * A exporter for 3D Models and animations that creates a Java Source file.
  */
 public class JavaSourceExporter {
-    private int                           nodeCount      = 0;
-    private int                           materialCount  = 0;
-    private int                           meshCount      = 0;
-    private int                           meshViewCount  = 0;
-    private int                           methodCount    = 1;
-    private int                           translateCount = 0;
-    private int                           rotateCount    = 0;
-    private int                           scaleCount     = 0;
-    private Map<WritableValue<?>, String> writableVarMap = new HashMap<>();
-    private StringBuilder                 nodeCode       = new StringBuilder();
-    private StringBuilder                 timelineCode   = new StringBuilder();
-    private final boolean                 hasTimeline;
-    private final String                  baseUrl;
-    private final String                  className;
-    private final String                  packageName;
-    private final File                    outputFile;
-
-    public JavaSourceExporter(String baseUrl, Node rootNode, Timeline timeline,
-                              File outputFile) {
-        this(baseUrl, rootNode, timeline, computePackageName(baseUrl),
-             outputFile);
-    }
-
-    public JavaSourceExporter(String baseUrl, Node rootNode, Timeline timeline,
-                              String packageName, File outputFile) {
-        this.baseUrl = (baseUrl.charAt(baseUrl.length()
-                                       - 1) == '/') ? baseUrl.replaceAll("/+",
-                                                                         "/")
-                                                    : baseUrl.replaceAll("/+",
-                                                                         "/")
-                                                      + '/';
-        this.hasTimeline = timeline != null;
-        this.className = outputFile.getName()
-                                   .substring(0, outputFile.getName()
-                                                           .lastIndexOf('.'));
-        this.packageName = packageName;
-        this.outputFile = outputFile;
-        process("        ", rootNode);
-        if (hasTimeline) {
-            process("        ", timeline);
-        }
-    }
-
     private static String computePackageName(String baseUrl) {
         // remove protocol from baseUrl
         System.out.println("JavaSourceExporter.computePackageName   baseUrl = "
@@ -146,6 +103,50 @@ public class JavaSourceExporter {
         }
         System.out.println(" packageName = " + packageName);
         return packageName == null ? null : packageName.toString();
+    }
+
+    private final String                  baseUrl;
+    private final String                  className;
+    private final boolean                 hasTimeline;
+    private int                           materialCount  = 0;
+    private int                           meshCount      = 0;
+    private int                           meshViewCount  = 0;
+    private int                           methodCount    = 1;
+    private StringBuilder                 nodeCode       = new StringBuilder();
+    private int                           nodeCount      = 0;
+    private final File                    outputFile;
+    private final String                  packageName;
+    private int                           rotateCount    = 0;
+    private int                           scaleCount     = 0;
+    private StringBuilder                 timelineCode   = new StringBuilder();
+    private int                           translateCount = 0;
+
+    private Map<WritableValue<?>, String> writableVarMap = new HashMap<>();
+
+    public JavaSourceExporter(String baseUrl, Node rootNode, Timeline timeline,
+                              File outputFile) {
+        this(baseUrl, rootNode, timeline, computePackageName(baseUrl),
+             outputFile);
+    }
+
+    public JavaSourceExporter(String baseUrl, Node rootNode, Timeline timeline,
+                              String packageName, File outputFile) {
+        this.baseUrl = (baseUrl.charAt(baseUrl.length()
+                                       - 1) == '/') ? baseUrl.replaceAll("/+",
+                                                                         "/")
+                                                    : baseUrl.replaceAll("/+",
+                                                                         "/")
+                                                      + '/';
+        this.hasTimeline = timeline != null;
+        this.className = outputFile.getName()
+                                   .substring(0, outputFile.getName()
+                                                           .lastIndexOf('.'));
+        this.packageName = packageName;
+        this.outputFile = outputFile;
+        process("        ", rootNode);
+        if (hasTimeline) {
+            process("        ", timeline);
+        }
     }
 
     public void export() {
@@ -253,16 +254,28 @@ public class JavaSourceExporter {
         }
     }
 
-    private int process(String indent, Node node) {
-        if (node instanceof MeshView) {
-            return process(indent, (MeshView) node);
-        } else if (node instanceof Group) {
-            return process(indent, (Group) node);
-        } else {
-            throw new UnsupportedOperationException("Found unknown node type: "
-                                                    + node.getClass()
-                                                          .getName());
+    private int process(String indent, Group node) {
+        final int index = nodeCount++;
+        final String varName = "NODE_" + index;
+        List<Integer> childIndex = new ArrayList<>();
+        for (int i = 0; i < node.getChildren()
+                                .size(); i++) {
+            Node child = node.getChildren()
+                             .get(i);
+            childIndex.add(process(indent, child));
         }
+        nodeCode.append(indent + varName + " = new Group(");
+        for (int i = 0; i < childIndex.size(); i++) {
+            if (i != 0) {
+                nodeCode.append(',');
+            }
+            nodeCode.append("NODE_" + childIndex.get(i));
+        }
+        nodeCode.append(");\n");
+        processNodeTransforms(indent, varName, node);
+        nodeCode.append("    }\n    private static void method"
+                        + (methodCount++) + "(){\n");
+        return index;
     }
 
     private int process(String indent, MeshView node) {
@@ -284,6 +297,184 @@ public class JavaSourceExporter {
         process(indent, meshViewVarName, (PhongMaterial) node.getMaterial());
         process(indent, meshViewVarName, (TriangleMesh) node.getMesh());
         return index;
+    }
+
+    private int process(String indent, Node node) {
+        if (node instanceof MeshView) {
+            return process(indent, (MeshView) node);
+        } else if (node instanceof Group) {
+            return process(indent, (Group) node);
+        } else {
+            throw new UnsupportedOperationException("Found unknown node type: "
+                                                    + node.getClass()
+                                                          .getName());
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void process(String indent, String varName,
+                         PhongMaterial material) {
+        final int index = materialCount++;
+        final String materialName = "MATERIAL_" + index;
+
+        nodeCode.append(indent + "PhongMaterial " + materialName
+                        + " = new PhongMaterial();\n");
+        nodeCode.append(indent + materialName + ".setDiffuseColor("
+                        + toCode(material.getDiffuseColor()) + ");\n");
+        String specColor = toCode(material.getSpecularColor());
+        if (specColor != null) {
+            nodeCode.append(indent + materialName + ".setSpecularColor("
+                            + specColor + ");\n");
+        }
+        nodeCode.append(indent + materialName + ".setSpecularPower("
+                        + material.getSpecularPower() + ");\n");
+        if (material.getDiffuseMap() != null) {
+            nodeCode.append(indent + "try {\n");
+            nodeCode.append(indent + "    " + materialName + ".setDiffuseMap("
+                            + toString(material.getDiffuseMap()) + ");\n");
+            nodeCode.append(indent + "} catch (NullPointerException npe) {\n");
+            nodeCode.append(indent
+                            + "    System.err.println(\"Could not load texture resource ["
+                            + material.getDiffuseMap()
+                                      .impl_getUrl()
+                            + "]\");\n");
+            nodeCode.append(indent + "}\n");
+        }
+        if (material.getBumpMap() != null) {
+            nodeCode.append(indent + materialName + ".setBumpMap("
+                            + toString(material.getBumpMap()) + ");\n");
+        }
+        if (material.getSpecularMap() != null) {
+            nodeCode.append(indent + materialName + ".setSpecularMap()("
+                            + toString(material.getSpecularMap()) + ");\n");
+        }
+        if (material.getSelfIlluminationMap() != null) {
+            nodeCode.append(indent + materialName + ".setSelfIlluminationMap()("
+                            + toString(material.getSelfIlluminationMap())
+                            + ");\n");
+        }
+        nodeCode.append(indent + varName + ".setMaterial(" + materialName
+                        + ");\n");
+    }
+
+    private void process(String indent, String varName, TriangleMesh mesh) {
+        final int index = meshCount++;
+        final String meshName = "MESH_" + index;
+
+        nodeCode.append(indent + meshName + " = new TriangleMesh();\n");
+        nodeCode.append(indent + varName + ".setMesh(" + meshName + ");\n");
+
+        nodeCode.append(indent + meshName + ".getPoints().ensureCapacity("
+                        + mesh.getPoints()
+                              .size()
+                        + ");\n");
+        nodeCode.append(indent + meshName + ".getPoints().addAll(");
+        for (int i = 0; i < mesh.getPoints()
+                                .size(); i++) {
+            if (i != 0) {
+                nodeCode.append(',');
+            }
+            nodeCode.append(mesh.getPoints()
+                                .get(i)
+                            + "f");
+        }
+        nodeCode.append(");\n");
+        nodeCode.append("    }\n    private static void method"
+                        + (methodCount++) + "(){\n");
+        nodeCode.append(indent + meshName + ".getTexCoords().ensureCapacity("
+                        + mesh.getTexCoords()
+                              .size()
+                        + ");\n");
+        nodeCode.append(indent + meshName + ".getTexCoords().addAll(");
+        for (int i = 0; i < mesh.getTexCoords()
+                                .size(); i++) {
+            if (i != 0) {
+                nodeCode.append(',');
+            }
+            nodeCode.append(mesh.getTexCoords()
+                                .get(i)
+                            + "f");
+        }
+        nodeCode.append(");\n");
+        nodeCode.append("    }\n    private static void method"
+                        + (methodCount++) + "(){\n");
+        nodeCode.append(indent + meshName + ".getFaces().ensureCapacity("
+                        + mesh.getFaces()
+                              .size()
+                        + ");\n");
+        nodeCode.append(indent + meshName + ".getFaces().addAll(");
+        for (int i = 0; i < mesh.getFaces()
+                                .size(); i++) {
+            if ((i % 5000) == 0 && i > 0) {
+                nodeCode.append(");\n");
+                nodeCode.append("    }\n    private static void method"
+                                + (methodCount++) + "(){\n");
+                nodeCode.append(indent + meshName + ".getFaces().addAll(");
+            } else if (i != 0) {
+                nodeCode.append(',');
+            }
+            nodeCode.append(mesh.getFaces()
+                                .get(i));
+        }
+        nodeCode.append(");\n");
+        nodeCode.append("    }\n    private static void method"
+                        + (methodCount++) + "(){\n");
+        nodeCode.append(indent + meshName
+                        + ".getFaceSmoothingGroups().ensureCapacity("
+                        + mesh.getFaceSmoothingGroups()
+                              .size()
+                        + ");\n");
+        nodeCode.append(indent + meshName
+                        + ".getFaceSmoothingGroups().addAll(");
+        for (int i = 0; i < mesh.getFaceSmoothingGroups()
+                                .size(); i++) {
+            if (i != 0) {
+                nodeCode.append(',');
+            }
+            nodeCode.append(mesh.getFaceSmoothingGroups()
+                                .get(i));
+        }
+        nodeCode.append(");\n");
+
+        //        nodeCode.append(indent+varName+".setMesh("+process((TriangleMesh)node.getMesh())+");\n");
+    }
+
+    private void process(String indent, Timeline timeline) {
+        int count = 0;
+        for (KeyFrame keyFrame : timeline.getKeyFrames()) {
+            if (keyFrame.getValues()
+                        .isEmpty()) {
+                continue;
+            }
+            nodeCode.append(indent
+                            + "TIMELINE.getKeyFrames().add(new KeyFrame(Duration.millis("
+                            + keyFrame.getTime()
+                                      .toMillis()
+                            + "d),\n");
+            boolean firstKeyValue = true;
+            for (KeyValue keyValue : keyFrame.getValues()) {
+                if (firstKeyValue) {
+                    firstKeyValue = false;
+                } else {
+                    nodeCode.append(",\n");
+                }
+                String var = writableVarMap.get(keyValue.getTarget());
+                if (var == null) {
+                    System.err.println("Failed to find writable value in map for : "
+                                       + keyValue.getTarget());
+                }
+                nodeCode.append(indent + "    new KeyValue(" + var + ","
+                                + keyValue.getEndValue() + ","
+                                + toString(keyValue.getInterpolator()) + ")");
+            }
+            nodeCode.append("\n" + indent + "));\n");
+
+            if (count > 0 && ((count % 10) == 0)) {
+                nodeCode.append("    }\n    private static void method"
+                                + (methodCount++) + "(){\n");
+            }
+            count++;
+        }
     }
 
     private void processNodeTransforms(String indent, String varName,
@@ -384,156 +575,11 @@ public class JavaSourceExporter {
         return varName;
     }
 
-    private int process(String indent, Group node) {
-        final int index = nodeCount++;
-        final String varName = "NODE_" + index;
-        List<Integer> childIndex = new ArrayList<>();
-        for (int i = 0; i < node.getChildren()
-                                .size(); i++) {
-            Node child = node.getChildren()
-                             .get(i);
-            childIndex.add(process(indent, child));
-        }
-        nodeCode.append(indent + varName + " = new Group(");
-        for (int i = 0; i < childIndex.size(); i++) {
-            if (i != 0) {
-                nodeCode.append(',');
-            }
-            nodeCode.append("NODE_" + childIndex.get(i));
-        }
-        nodeCode.append(");\n");
-        processNodeTransforms(indent, varName, node);
-        nodeCode.append("    }\n    private static void method"
-                        + (methodCount++) + "(){\n");
-        return index;
-    }
-
-    private void process(String indent, String varName, TriangleMesh mesh) {
-        final int index = meshCount++;
-        final String meshName = "MESH_" + index;
-
-        nodeCode.append(indent + meshName + " = new TriangleMesh();\n");
-        nodeCode.append(indent + varName + ".setMesh(" + meshName + ");\n");
-
-        nodeCode.append(indent + meshName + ".getPoints().ensureCapacity("
-                        + mesh.getPoints()
-                              .size()
-                        + ");\n");
-        nodeCode.append(indent + meshName + ".getPoints().addAll(");
-        for (int i = 0; i < mesh.getPoints()
-                                .size(); i++) {
-            if (i != 0) {
-                nodeCode.append(',');
-            }
-            nodeCode.append(mesh.getPoints()
-                                .get(i)
-                            + "f");
-        }
-        nodeCode.append(");\n");
-        nodeCode.append("    }\n    private static void method"
-                        + (methodCount++) + "(){\n");
-        nodeCode.append(indent + meshName + ".getTexCoords().ensureCapacity("
-                        + mesh.getTexCoords()
-                              .size()
-                        + ");\n");
-        nodeCode.append(indent + meshName + ".getTexCoords().addAll(");
-        for (int i = 0; i < mesh.getTexCoords()
-                                .size(); i++) {
-            if (i != 0) {
-                nodeCode.append(',');
-            }
-            nodeCode.append(mesh.getTexCoords()
-                                .get(i)
-                            + "f");
-        }
-        nodeCode.append(");\n");
-        nodeCode.append("    }\n    private static void method"
-                        + (methodCount++) + "(){\n");
-        nodeCode.append(indent + meshName + ".getFaces().ensureCapacity("
-                        + mesh.getFaces()
-                              .size()
-                        + ");\n");
-        nodeCode.append(indent + meshName + ".getFaces().addAll(");
-        for (int i = 0; i < mesh.getFaces()
-                                .size(); i++) {
-            if ((i % 5000) == 0 && i > 0) {
-                nodeCode.append(");\n");
-                nodeCode.append("    }\n    private static void method"
-                                + (methodCount++) + "(){\n");
-                nodeCode.append(indent + meshName + ".getFaces().addAll(");
-            } else if (i != 0) {
-                nodeCode.append(',');
-            }
-            nodeCode.append(mesh.getFaces()
-                                .get(i));
-        }
-        nodeCode.append(");\n");
-        nodeCode.append("    }\n    private static void method"
-                        + (methodCount++) + "(){\n");
-        nodeCode.append(indent + meshName
-                        + ".getFaceSmoothingGroups().ensureCapacity("
-                        + mesh.getFaceSmoothingGroups()
-                              .size()
-                        + ");\n");
-        nodeCode.append(indent + meshName
-                        + ".getFaceSmoothingGroups().addAll(");
-        for (int i = 0; i < mesh.getFaceSmoothingGroups()
-                                .size(); i++) {
-            if (i != 0) {
-                nodeCode.append(',');
-            }
-            nodeCode.append(mesh.getFaceSmoothingGroups()
-                                .get(i));
-        }
-        nodeCode.append(");\n");
-
-        //        nodeCode.append(indent+varName+".setMesh("+process((TriangleMesh)node.getMesh())+");\n");
-    }
-
-    @SuppressWarnings("deprecation")
-    private void process(String indent, String varName,
-                         PhongMaterial material) {
-        final int index = materialCount++;
-        final String materialName = "MATERIAL_" + index;
-
-        nodeCode.append(indent + "PhongMaterial " + materialName
-                        + " = new PhongMaterial();\n");
-        nodeCode.append(indent + materialName + ".setDiffuseColor("
-                        + toCode(material.getDiffuseColor()) + ");\n");
-        String specColor = toCode(material.getSpecularColor());
-        if (specColor != null) {
-            nodeCode.append(indent + materialName + ".setSpecularColor("
-                            + specColor + ");\n");
-        }
-        nodeCode.append(indent + materialName + ".setSpecularPower("
-                        + material.getSpecularPower() + ");\n");
-        if (material.getDiffuseMap() != null) {
-            nodeCode.append(indent + "try {\n");
-            nodeCode.append(indent + "    " + materialName + ".setDiffuseMap("
-                            + toString(material.getDiffuseMap()) + ");\n");
-            nodeCode.append(indent + "} catch (NullPointerException npe) {\n");
-            nodeCode.append(indent
-                            + "    System.err.println(\"Could not load texture resource ["
-                            + material.getDiffuseMap()
-                                      .impl_getUrl()
-                            + "]\");\n");
-            nodeCode.append(indent + "}\n");
-        }
-        if (material.getBumpMap() != null) {
-            nodeCode.append(indent + materialName + ".setBumpMap("
-                            + toString(material.getBumpMap()) + ");\n");
-        }
-        if (material.getSpecularMap() != null) {
-            nodeCode.append(indent + materialName + ".setSpecularMap()("
-                            + toString(material.getSpecularMap()) + ");\n");
-        }
-        if (material.getSelfIlluminationMap() != null) {
-            nodeCode.append(indent + materialName + ".setSelfIlluminationMap()("
-                            + toString(material.getSelfIlluminationMap())
-                            + ");\n");
-        }
-        nodeCode.append(indent + varName + ".setMaterial(" + materialName
-                        + ");\n");
+    private String toCode(Color color) {
+        return color == null ? null
+                             : "new Color(" + color.getRed() + ","
+                               + color.getGreen() + "," + color.getBlue() + ","
+                               + color.getOpacity() + ")";
     }
 
     private String toString(Image image) {
@@ -544,44 +590,6 @@ public class JavaSourceExporter {
                    + url.substring(baseUrl.length()) + "\").toExternalForm())";
         } else {
             return "new Image(\"" + url + "\")";
-        }
-    }
-
-    private void process(String indent, Timeline timeline) {
-        int count = 0;
-        for (KeyFrame keyFrame : timeline.getKeyFrames()) {
-            if (keyFrame.getValues()
-                        .isEmpty()) {
-                continue;
-            }
-            nodeCode.append(indent
-                            + "TIMELINE.getKeyFrames().add(new KeyFrame(Duration.millis("
-                            + keyFrame.getTime()
-                                      .toMillis()
-                            + "d),\n");
-            boolean firstKeyValue = true;
-            for (KeyValue keyValue : keyFrame.getValues()) {
-                if (firstKeyValue) {
-                    firstKeyValue = false;
-                } else {
-                    nodeCode.append(",\n");
-                }
-                String var = writableVarMap.get(keyValue.getTarget());
-                if (var == null) {
-                    System.err.println("Failed to find writable value in map for : "
-                                       + keyValue.getTarget());
-                }
-                nodeCode.append(indent + "    new KeyValue(" + var + ","
-                                + keyValue.getEndValue() + ","
-                                + toString(keyValue.getInterpolator()) + ")");
-            }
-            nodeCode.append("\n" + indent + "));\n");
-
-            if (count > 0 && ((count % 10) == 0)) {
-                nodeCode.append("    }\n    private static void method"
-                                + (methodCount++) + "(){\n");
-            }
-            count++;
         }
     }
 
@@ -612,12 +620,5 @@ public class JavaSourceExporter {
             throw new UnsupportedOperationException("Unknown Interpolator type: "
                                                     + interpolator.getClass());
         }
-    }
-
-    private String toCode(Color color) {
-        return color == null ? null
-                             : "new Color(" + color.getRed() + ","
-                               + color.getGreen() + "," + color.getBlue() + ","
-                               + color.getOpacity() + ")";
     }
 }

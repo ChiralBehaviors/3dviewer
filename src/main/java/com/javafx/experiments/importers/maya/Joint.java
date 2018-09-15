@@ -52,47 +52,47 @@ import javafx.scene.transform.Translate;
  * so matrix = [T][IS][JO][R][S]
  */
 public class Joint extends Group {
-    public final Translate t   = new Translate();
+    public final Scale     is  = new Scale();
+    // should bind "is" to be in the inverse of the parent's "s"
 
     public final Rotate    jox = new Rotate();
+
+    public final Rotate    joy = new Rotate();
+
+    public final Rotate    joz = new Rotate();
+
+    public final Rotate    rx  = new Rotate();
+
+    public final Rotate    ry  = new Rotate();
+
+    public final Rotate    rz  = new Rotate();
+
+    public final Scale     s   = new Scale();
+
+    public final Translate t   = new Translate();
 
     {
         jox.setAxis(Rotate.X_AXIS);
     }
 
-    public final Rotate joy = new Rotate();
-
     {
         joy.setAxis(Rotate.Y_AXIS);
     }
-
-    public final Rotate joz = new Rotate();
 
     {
         joz.setAxis(Rotate.Z_AXIS);
     }
 
-    public final Rotate rx = new Rotate();
-
     {
         rx.setAxis(Rotate.X_AXIS);
     }
 
-    public final Rotate ry = new Rotate();
-
     {
         ry.setAxis(Rotate.Y_AXIS);
     }
-
-    public final Rotate rz = new Rotate();
-
     {
         rz.setAxis(Rotate.Z_AXIS);
     }
-
-    public final Scale s  = new Scale();
-    public final Scale is = new Scale();
-    // should bind "is" to be in the inverse of the parent's "s"
 
     public Joint() {
         super();

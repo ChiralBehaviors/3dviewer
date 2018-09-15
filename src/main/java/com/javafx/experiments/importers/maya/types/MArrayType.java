@@ -44,13 +44,13 @@ public class MArrayType extends MDataType {
         this.elementType = elementType;
     }
 
-    public MDataType getElementType() {
-        return elementType;
-    }
-
     @Override
     public MData createData() {
         return new MArrayImpl(this);
+    }
+
+    public MDataType getElementType() {
+        return elementType;
     }
 
 }

@@ -41,36 +41,6 @@ import com.javafx.experiments.importers.maya.values.MData;
 import com.javafx.experiments.importers.maya.values.MPolyFace;
 
 public class MPolyFaceImpl extends MDataImpl implements MPolyFace {
-    private List<FaceData> faces;
-
-    public MPolyFaceImpl(MPolyFaceType type) {
-        super(type);
-    }
-
-    @Override
-    public void addFace(FaceData face) {
-        if (faces == null) {
-            faces = new ArrayList<FaceData>();
-        }
-        faces.add(face);
-    }
-
-    @Override
-    public MData getData(int start, int end) {
-        return this; // hack?
-    }
-
-    @Override
-    public List<FaceData> getFaces() {
-        return faces;
-    }
-
-    @Override
-    public void parse(Iterator<String> values) {
-        // System.out.println("parsing poly faces: " + values);
-        new Parser(values).parse();
-    }
-
     class Parser {
         private Iterator<String> curArgs;
 
@@ -122,6 +92,36 @@ public class MPolyFaceImpl extends MDataImpl implements MPolyFace {
             }
             return res;
         }
+    }
+
+    private List<FaceData> faces;
+
+    public MPolyFaceImpl(MPolyFaceType type) {
+        super(type);
+    }
+
+    @Override
+    public void addFace(FaceData face) {
+        if (faces == null) {
+            faces = new ArrayList<FaceData>();
+        }
+        faces.add(face);
+    }
+
+    @Override
+    public MData getData(int start, int end) {
+        return this; // hack?
+    }
+
+    @Override
+    public List<FaceData> getFaces() {
+        return faces;
+    }
+
+    @Override
+    public void parse(Iterator<String> values) {
+        // System.out.println("parsing poly faces: " + values);
+        new Parser(values).parse();
     }
 
     @Override

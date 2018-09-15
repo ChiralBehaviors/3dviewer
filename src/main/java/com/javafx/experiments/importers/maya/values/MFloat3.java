@@ -33,9 +33,9 @@
 package com.javafx.experiments.importers.maya.values;
 
 public interface MFloat3 extends MData {
-    public void set(float x, float y, float z);
-
     public float[] get();
+
+    public float get(int i);
 
     public float getX();
 
@@ -43,5 +43,5 @@ public interface MFloat3 extends MData {
 
     public float getZ();
 
-    public float get(int i);
+    public void set(float x, float y, float z);
 }

@@ -41,11 +41,18 @@ import javafx.collections.ObservableIntegerArray;
  * can convert to using ObservableIntegerArray
  */
 public class PolygonMesh {
-    private final ObservableFloatArray   points              = FXCollections.observableFloatArray();
-    private final ObservableFloatArray   texCoords           = FXCollections.observableFloatArray();
-    public int[][]                       faces               = new int[0][0];
-    private final ObservableIntegerArray faceSmoothingGroups = FXCollections.observableIntegerArray();
-    protected int                        numEdgesInFaces     = -1;                                    // TODO invalidate automatically by listening to faces (whenever it is an observable)
+    private static final int             NUM_COMPONENTS_PER_FACE     = 6;
+    // TODO: Hardcode to constants for FX 8 (only one vertex format)
+    private static final int             NUM_COMPONENTS_PER_POINT    = 3;
+    private static final int             NUM_COMPONENTS_PER_TEXCOORD = 2;
+    public int[][]                       faces                       = new int[0][0];
+    protected int                        numEdgesInFaces             = -1;                                    // TODO invalidate automatically by listening to faces (whenever it is an observable)
+
+    private final ObservableIntegerArray faceSmoothingGroups         = FXCollections.observableIntegerArray();
+
+    private final ObservableFloatArray   points                      = FXCollections.observableFloatArray();
+
+    private final ObservableFloatArray   texCoords                   = FXCollections.observableFloatArray();
 
     public PolygonMesh() {
     }
@@ -56,12 +63,8 @@ public class PolygonMesh {
         this.faces = faces;
     }
 
-    public ObservableFloatArray getPoints() {
-        return points;
-    }
-
-    public ObservableFloatArray getTexCoords() {
-        return texCoords;
+    public int getFaceElementSize() {
+        return NUM_COMPONENTS_PER_FACE;
     }
 
     public ObservableIntegerArray getFaceSmoothingGroups() {
@@ -79,20 +82,19 @@ public class PolygonMesh {
         return numEdgesInFaces;
     }
 
-    // TODO: Hardcode to constants for FX 8 (only one vertex format)
-    private static final int NUM_COMPONENTS_PER_POINT    = 3;
-    private static final int NUM_COMPONENTS_PER_TEXCOORD = 2;
-    private static final int NUM_COMPONENTS_PER_FACE     = 6;
-
     public int getPointElementSize() {
         return NUM_COMPONENTS_PER_POINT;
+    }
+
+    public ObservableFloatArray getPoints() {
+        return points;
     }
 
     public int getTexCoordElementSize() {
         return NUM_COMPONENTS_PER_TEXCOORD;
     }
 
-    public int getFaceElementSize() {
-        return NUM_COMPONENTS_PER_FACE;
+    public ObservableFloatArray getTexCoords() {
+        return texCoords;
     }
 }

@@ -53,66 +53,12 @@ import com.javafx.experiments.importers.maya.values.MPointer;
 
 public class MParser {
 
-    private MEnv        env;
-    private URL         inputSource;
-    private MNode       selectedNode;
-    private boolean     inPlaybackScriptNode = false;
-    private Set<String> refs                 = new HashSet<>();
-
-    public MParser(MEnv env) {
-        this.env = env;
-    }
-
-    public void parse(URL url) throws IOException {
-        if (url == null) {
-            throw new IOException("Null URL");
-        }
-        this.inputSource = url;
-        URLConnection conn = url.openConnection();
-        try (InputStream input = conn.getInputStream()) {
-            parse(input);
-        }
-    }
-
-    private int lineNo;
-
-    public void parse(InputStream inputStream) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-        String line;
-        lineNo = 0;
-        List<String> command = new ArrayList<>();
-        while ((line = reader.readLine()) != null) {
-            ++lineNo;
-            Tokenizer tokenizer = new Tokenizer(line);
-            while (tokenizer.hasMoreTokens()) {
-                String tok = tokenizer.nextToken();
-                if (tok.startsWith("//")) {
-                    // Comment until end of line
-                    break;
-                }
-                if (tok.endsWith(";")) {
-                    // End of current command; execute it
-                    String tmp = tok.substring(0, tok.length() - 1);
-                    if (tmp.length() > 0) {
-                        command.add(tmp);
-                    }
-                    if (command.size() > 0) {
-                        execute(command);
-                        command.clear();
-                    }
-                } else {
-                    command.add(tok);
-                }
-            }
-        }
-    }
-
     // Maya-specific tokenizer; handles quoted strings with spaces and strips quotes from them
     // Does not properly unescape contents of strings yet
     class Tokenizer {
+        private boolean escaping = false;
         private String  line;
         private int     pos;
-        private boolean escaping = false;
 
         Tokenizer(String line) {
             this.line = line;
@@ -173,68 +119,63 @@ public class MParser {
         }
     }
 
-    private RuntimeException error(String error) {
-        return new RuntimeException(error + ", current command " + curCommand
-                                    + ", file " + inputSource + ", line "
-                                    + lineNo);
-    }
-
-    private void execute(List<String> commandArgs) {
-        String command = commandArgs.remove(0);
-        curCommand = command;
-        curArgs = commandArgs;
-        switch (command) {
-            case "file":
-                doFile();
-                break;
-            case "requires":
-                doRequires();
-                break;
-            case "createNode":
-                doCreateNode();
-                break;
-            case "setAttr":
-                doSetAttr();
-                break;
-            case "addAttr":
-                doAddAttr();
-                break;
-            case "parent":
-                doParent();
-                break;
-            case "connectAttr":
-                doConnectAttr();
-                break;
-            case "disconnectAttr":
-                doDisconnectAttr();
-                break;
-            case "select":
-                doSelect();
-                break;
-            case "currentUnit":
-                doCurrentUnit();
-                break;
-            case "fileInfo":
-                doFileInfo();
-                break;
-            default:
-                System.out.println("Unrecognized command " + command);
-                break;
-        }
-    }
-
-    private String       curCommand;
     private List<String> curArgs;
+    private String       curCommand;
+    private MEnv         env;
+    private boolean      inPlaybackScriptNode = false;
 
-    private String nextArg() {
-        if (curArgs.size() > 0) {
-            return curArgs.remove(0);
-        }
-        throw error("No more arguments for command \"" + curCommand + "\"");
+    private URL          inputSource;
+
+    private int          lineNo;
+
+    private Set<String>  refs                 = new HashSet<>();
+
+    private MNode        selectedNode;
+
+    public MParser(MEnv env) {
+        this.env = env;
     }
 
-    private boolean moreArgs() {
-        return curArgs.size() > 0;
+    public void parse(InputStream inputStream) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        lineNo = 0;
+        List<String> command = new ArrayList<>();
+        while ((line = reader.readLine()) != null) {
+            ++lineNo;
+            Tokenizer tokenizer = new Tokenizer(line);
+            while (tokenizer.hasMoreTokens()) {
+                String tok = tokenizer.nextToken();
+                if (tok.startsWith("//")) {
+                    // Comment until end of line
+                    break;
+                }
+                if (tok.endsWith(";")) {
+                    // End of current command; execute it
+                    String tmp = tok.substring(0, tok.length() - 1);
+                    if (tmp.length() > 0) {
+                        command.add(tmp);
+                    }
+                    if (command.size() > 0) {
+                        execute(command);
+                        command.clear();
+                    }
+                } else {
+                    command.add(tok);
+                }
+            }
+        }
+    }
+
+    public void parse(URL url) throws IOException {
+        if (url == null) {
+            throw new IOException("Null URL");
+        }
+        this.inputSource = url;
+        URLConnection conn = url.openConnection();
+        try (InputStream input = conn.getInputStream()) {
+            parse(input);
+        }
     }
 
     private void doAddAttr() {
@@ -566,5 +507,66 @@ public class MParser {
                 e.printStackTrace(System.err);
             }
         }
+    }
+
+    private RuntimeException error(String error) {
+        return new RuntimeException(error + ", current command " + curCommand
+                                    + ", file " + inputSource + ", line "
+                                    + lineNo);
+    }
+
+    private void execute(List<String> commandArgs) {
+        String command = commandArgs.remove(0);
+        curCommand = command;
+        curArgs = commandArgs;
+        switch (command) {
+            case "file":
+                doFile();
+                break;
+            case "requires":
+                doRequires();
+                break;
+            case "createNode":
+                doCreateNode();
+                break;
+            case "setAttr":
+                doSetAttr();
+                break;
+            case "addAttr":
+                doAddAttr();
+                break;
+            case "parent":
+                doParent();
+                break;
+            case "connectAttr":
+                doConnectAttr();
+                break;
+            case "disconnectAttr":
+                doDisconnectAttr();
+                break;
+            case "select":
+                doSelect();
+                break;
+            case "currentUnit":
+                doCurrentUnit();
+                break;
+            case "fileInfo":
+                doFileInfo();
+                break;
+            default:
+                System.out.println("Unrecognized command " + command);
+                break;
+        }
+    }
+
+    private boolean moreArgs() {
+        return curArgs.size() > 0;
+    }
+
+    private String nextArg() {
+        if (curArgs.size() > 0) {
+            return curArgs.remove(0);
+        }
+        throw error("No more arguments for command \"" + curCommand + "\"");
     }
 }

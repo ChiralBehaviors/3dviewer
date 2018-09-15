@@ -39,40 +39,14 @@ import javafx.geometry.Point3D;
 
 /** Max file format data objects */
 public class MaxData {
-    public static class MappingChannel {
-        public int   ntPoints;
-        public float tPoints[];
-        public int   faces[];  // t0 t1 t2
+    public static class CameraNode extends Node {
+        public float  near, far, fov;
+        public NodeTM target;
     }
 
-    public static class Mesh {
-        public String         name;
-        public int            nPoints;
-        public float          points[]; // x,y,z, x,y,z, ....
-        public int            nFaces;
-        public int            faces[];  // [[p0,p1,p2, smoothing]...]
-        public MappingChannel mapping[];
-    }
-
-    public static class NodeTM {
-        public String  name;
-        public Point3D pos;
-        public Point3D tm[] = new Point3D[3];
-    }
-
-    public static class Material {
-        public String  name;
-        public String  diffuseMap;
-        public Point3D ambientColor;
-        public Point3D diffuseColor;
-        public Point3D specularColor;
-    }
-
-    public static class Node {
-        public String     name;
-        public NodeTM     nodeTM;
-        public Node       parent;
-        public List<Node> children;
+    public static class GeomNode extends Node {
+        public int  materialRef;
+        public Mesh mesh;
     }
 
     public static class LightNode extends Node {
@@ -80,14 +54,40 @@ public class MaxData {
         public float r, g, b;
     }
 
-    public static class CameraNode extends Node {
-        public NodeTM target;
-        public float  near, far, fov;
+    public static class MappingChannel {
+        public int   faces[];  // t0 t1 t2
+        public int   ntPoints;
+        public float tPoints[];
     }
 
-    public static class GeomNode extends Node {
-        public Mesh mesh;
-        public int  materialRef;
+    public static class Material {
+        public Point3D ambientColor;
+        public Point3D diffuseColor;
+        public String  diffuseMap;
+        public String  name;
+        public Point3D specularColor;
+    }
+
+    public static class Mesh {
+        public int            faces[];  // [[p0,p1,p2, smoothing]...]
+        public MappingChannel mapping[];
+        public String         name;
+        public int            nFaces;
+        public int            nPoints;
+        public float          points[]; // x,y,z, x,y,z, ....
+    }
+
+    public static class Node {
+        public List<Node> children;
+        public String     name;
+        public NodeTM     nodeTM;
+        public Node       parent;
+    }
+
+    public static class NodeTM {
+        public String  name;
+        public Point3D pos;
+        public Point3D tm[] = new Point3D[3];
     }
 
     public Material          materials[];

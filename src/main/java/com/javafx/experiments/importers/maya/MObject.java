@@ -33,26 +33,26 @@
 package com.javafx.experiments.importers.maya;
 
 public abstract class MObject {
-    final String name;
     MEnv         env;
-
-    @Override
-    public String toString() {
-        return super.toString() + " MObject.name: " + name;
-    }
+    final String name;
 
     public MObject(MEnv env, String name) {
         this.env = env;
         this.name = name;
     }
 
-    public String getName() {
-        return name;
-    }
+    public abstract void accept(MEnv.Visitor visitor);
 
     public MEnv getEnv() {
         return env;
     }
 
-    public abstract void accept(MEnv.Visitor visitor);
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " MObject.name: " + name;
+    }
 }

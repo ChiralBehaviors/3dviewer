@@ -40,17 +40,8 @@ import javafx.scene.layout.Pane;
  * Resizable container for a SubScene
  */
 public class SubSceneResizer extends Pane {
-    private SubScene   subScene;
     private final Node controlsPanel;
-
-    public SubSceneResizer(SubScene subScene, Node controlsPanel) {
-        this.subScene = subScene;
-        this.controlsPanel = controlsPanel;
-        setPrefSize(subScene.getWidth(), subScene.getHeight());
-        setMinSize(50, 50);
-        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-        getChildren().addAll(subScene, controlsPanel);
-    }
+    private SubScene   subScene;
 
     public SubSceneResizer(ObjectProperty<SubScene> subScene,
                            Node controlsPanel) {
@@ -75,6 +66,15 @@ public class SubSceneResizer extends Pane {
         setMinSize(50, 50);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         getChildren().add(controlsPanel);
+    }
+
+    public SubSceneResizer(SubScene subScene, Node controlsPanel) {
+        this.subScene = subScene;
+        this.controlsPanel = controlsPanel;
+        setPrefSize(subScene.getWidth(), subScene.getHeight());
+        setMinSize(50, 50);
+        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        getChildren().addAll(subScene, controlsPanel);
     }
 
     @Override

@@ -39,18 +39,23 @@ import com.javafx.experiments.importers.maya.values.MData;
 import com.javafx.experiments.importers.maya.values.MNurbsCurve;
 
 public class MNurbsCurveImpl extends MDataImpl implements MNurbsCurve {
+    float[] cvs;
     int     degree;
-    int     spans;
-    int     form;
-    boolean rational;
     int     dimension;
-    int     numKnots;
+    int     form;
     float[] knots;
     int     numCvs;
-    float[] cvs;
+    int     numKnots;
+    boolean rational;
+    int     spans;
 
     public MNurbsCurveImpl(MNurbsCurveType type) {
         super(type);
+    }
+
+    @Override
+    public float[] getCVs() {
+        return cvs;
     }
 
     @Override
@@ -64,28 +69,13 @@ public class MNurbsCurveImpl extends MDataImpl implements MNurbsCurve {
     }
 
     @Override
-    public int getSpans() {
-        return spans;
-    }
-
-    @Override
-    public int getForm() {
-        return form;
-    }
-
-    @Override
-    public boolean isRational() {
-        return rational;
-    }
-
-    @Override
     public int getDimension() {
         return dimension;
     }
 
     @Override
-    public int getNumKnots() {
-        return numKnots;
+    public int getForm() {
+        return form;
     }
 
     @Override
@@ -99,8 +89,18 @@ public class MNurbsCurveImpl extends MDataImpl implements MNurbsCurve {
     }
 
     @Override
-    public float[] getCVs() {
-        return cvs;
+    public int getNumKnots() {
+        return numKnots;
+    }
+
+    @Override
+    public int getSpans() {
+        return spans;
+    }
+
+    @Override
+    public boolean isRational() {
+        return rational;
     }
 
     @Override

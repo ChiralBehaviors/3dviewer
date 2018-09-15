@@ -36,10 +36,10 @@ package com.javafx.experiments.shape3d.symbolic;
  * a function of other variables.
  */
 public abstract class SymbolicPointArray {
-    final public float[] data;
-    final public int     numPoints;
     // x, y, z as stated.
     static final int     NUM_COMPONENTS_PER_POINT = 3;
+    final public float[] data;
+    final public int     numPoints;
 
     protected SymbolicPointArray(float[] data) {
         this.data = data;

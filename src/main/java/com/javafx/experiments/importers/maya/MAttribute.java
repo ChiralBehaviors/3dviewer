@@ -35,10 +35,10 @@ import com.javafx.experiments.importers.maya.types.MDataType;
 
 public class MAttribute extends MObject {
 
-    String    shortName;
+    int       childIndex = -1;
     MDataType dataType;
     MNodeType declaringNodeType;
-    int       childIndex = -1;
+    String    shortName;
 
     public MAttribute(MEnv env, String name, String shortName, MDataType type) {
         super(env, name);
@@ -46,13 +46,17 @@ public class MAttribute extends MObject {
         this.dataType = type;
     }
 
-    public MNodeType getContext() {
-        return declaringNodeType;
-    }
-
     @Override
     public void accept(MEnv.Visitor visitor) {
         visitor.visitAttribute(this);
+    }
+
+    public int addChild() {
+        return ++childIndex;
+    }
+
+    public MNodeType getContext() {
+        return declaringNodeType;
     }
 
     public String getShortName() {
@@ -61,9 +65,5 @@ public class MAttribute extends MObject {
 
     public MDataType getType() {
         return dataType;
-    }
-
-    public int addChild() {
-        return ++childIndex;
     }
 }

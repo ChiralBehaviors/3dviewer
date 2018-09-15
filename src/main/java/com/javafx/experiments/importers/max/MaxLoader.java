@@ -56,6 +56,52 @@ import javafx.scene.transform.Transform;
 
 /** Max ASCII file loader */
 public class MaxLoader extends Importer {
+    public static class MaxScene extends Group {
+        public final Group geometry;
+        public final Group lights;
+
+        public MaxScene(Group geometry, Group lights) {
+            this.geometry = geometry;
+            this.lights = lights;
+            getChildren().addAll(geometry, lights);
+        }
+    }
+
+    public static String appendSuffix(String fileName, String suffix) {
+        int dot = fileName.lastIndexOf('.');
+        String ext = fileName.substring(dot, fileName.length());
+        String name = fileName.substring(0, dot);
+        String res = name + suffix + ext;
+        return res;
+    }
+
+    public static String getBumpTextureName(String diffName) {
+        return appendSuffix(diffName, "_bp");
+    }
+
+    public static String getSpecularTextureName(String diffName) {
+        return appendSuffix(diffName, "_sp");
+    }
+
+    @SuppressWarnings("deprecation")
+    static Image loadImage(String fullName) {
+        Image img = null;
+        try {
+            File f = new File(fullName);
+            if (f.exists()) {
+                String url = f.toURL()
+                              .toString();
+                img = new Image(url);
+            } else {
+                System.out.println("Texture file does not exist: " + fullName);
+            }
+        } catch (Exception ex) {
+            System.out.println("Failed to load:" + fullName);
+            ex.printStackTrace(System.out);
+        }
+        return img;
+    }
+
     private static Mesh createMaxMesh(MaxData.GeomNode maxNode, Transform tm) {
         Transform tmr = null;
         try {
@@ -130,157 +176,25 @@ public class MaxLoader extends Importer {
 
     private Material[] materials;
 
-    private MeshView loadMaxMeshView(MaxData.GeomNode maxNode, MaxData maxData,
-                                     Transform tm) {
-        Mesh mesh = createMaxMesh(maxNode, tm);
-        MeshView meshView = new MeshView();
-        meshView.setMesh(mesh);
-        meshView.setMaterial(materials[maxNode.materialRef]);
-        // Color amb = color(maxData.materials[maxNode.materialRef].ambientColor);
-        //meshView.setAmbient(amb);
+    private MaxScene   root;
 
-        meshView.setUserData(maxNode.name);
-        // meshView.setWireframe(true);
-        return meshView;
+    @Override
+    public Group getRoot() {
+        return root;
     }
 
-    public static String appendSuffix(String fileName, String suffix) {
-        int dot = fileName.lastIndexOf('.');
-        String ext = fileName.substring(dot, fileName.length());
-        String name = fileName.substring(0, dot);
-        String res = name + suffix + ext;
-        return res;
+    @Override
+    public boolean isSupported(String extension) {
+        return extension != null && extension.equals("ase");
     }
 
-    public static String getSpecularTextureName(String diffName) {
-        return appendSuffix(diffName, "_sp");
-    }
-
-    public static String getBumpTextureName(String diffName) {
-        return appendSuffix(diffName, "_bp");
-    }
-
-    @SuppressWarnings("deprecation")
-    static Image loadImage(String fullName) {
-        Image img = null;
-        try {
-            File f = new File(fullName);
-            if (f.exists()) {
-                String url = f.toURL()
-                              .toString();
-                img = new Image(url);
-            } else {
-                System.out.println("Texture file does not exist: " + fullName);
-            }
-        } catch (Exception ex) {
-            System.out.println("Failed to load:" + fullName);
-            ex.printStackTrace(System.out);
-        }
-        return img;
-    }
-
-    private void loadMaxMaterials(MaxData.Material mtls[], String dir) {
-        materials = new Material[mtls.length];
-        for (int i = 0; i < mtls.length; i++) {
-            MaxData.Material m = mtls[i];
-            PhongMaterial mtl = new PhongMaterial(Color.color(m.diffuseColor.getX(),
-                                                              m.diffuseColor.getY(),
-                                                              m.diffuseColor.getZ()));
-
-            String fullName = dir + File.separatorChar + m.diffuseMap;
-            Image diffuseMap = loadImage(fullName);
-            Image specularMap = loadImage(getSpecularTextureName(fullName));
-            Image bumpMap = loadImage(getBumpTextureName(fullName));
-            ;
-
-            mtl.setDiffuseMap(diffuseMap);
-            mtl.setSpecularMap(specularMap);
-            mtl.setBumpMap(bumpMap);
-            mtl.setDiffuseColor(Color.WHITE);
-            materials[i] = mtl;
-        }
-    }
-
-    private void loadMaxMaterialsUrl(MaxData.Material mtls[], String baseURl) {
-        materials = new Material[mtls.length];
-        for (int i = 0; i < mtls.length; i++) {
-            MaxData.Material m = mtls[i];
-            PhongMaterial mtl = new PhongMaterial(Color.color(m.diffuseColor.getX(),
-                                                              m.diffuseColor.getY(),
-                                                              m.diffuseColor.getZ()));
-
-            String fullName = baseURl + m.diffuseMap;
-            Image diffuseMap = new Image(fullName);
-            Image specularMap = new Image(getSpecularTextureName(fullName));
-            Image bumpMap = new Image(getBumpTextureName(fullName));
-            ;
-
-            mtl.setDiffuseMap(diffuseMap);
-            mtl.setSpecularMap(specularMap);
-            mtl.setBumpMap(bumpMap);
-            mtl.setDiffuseColor(Color.WHITE);
-            materials[i] = mtl;
-        }
-    }
-
-    PointLight loadLight(MaxData.LightNode ln, Transform ntm) {
-        PointLight l = new PointLight();
-        if (ntm != null) {
-            l.setTranslateX(ntm.getTx());
-            l.setTranslateY(ntm.getTy());
-            l.setTranslateZ(ntm.getTz());
-        }
-        l.setColor(Color.color(ln.r, ln.g, ln.b));
-        //        l.setStrength(ln.intensity);     // TODO
-        return l;
-    }
-
-    private Node loadMaxNode(MaxData.Node maxNode, MaxData maxData) {
-        Transform ntm = loadNodeTM(maxNode.nodeTM);
-
-        //        Translate tm = new Translate(ntm.getTx(), ntm.getTy(), ntm.getTz());
-        Group group = null;
-        if (maxNode.children != null) {
-            group = new Group();
-
-            //            group.getTransforms().add(tm);
-            for (MaxData.Node maxChild : maxNode.children) {
-                Node child = loadMaxNode(maxChild, maxData);
-                if (child != null) {
-                    group.getChildren()
-                         .add(child);
-                }
-            }
-        }
-
-        Node node = null;
-
-        if (maxNode instanceof MaxData.GeomNode) {
-            MaxData.GeomNode geomNode = (MaxData.GeomNode) maxNode;
-            node = loadMaxMeshView(geomNode, maxData, null /* tm */);
-        }
-
-        if ((maxNode instanceof MaxData.LightNode)) {
-            node = loadLight((MaxData.LightNode) maxNode, ntm);
-        }
-
-        if (group != null && node != null) {
-            //          meshView.getTransforms().add(tm);
-            group.getChildren()
-                 .add(node);
-        }
-
-        return group != null ? group : node;
-    }
-
-    public static class MaxScene extends Group {
-        public final Group geometry;
-        public final Group lights;
-
-        public MaxScene(Group geometry, Group lights) {
-            this.geometry = geometry;
-            this.lights = lights;
-            getChildren().addAll(geometry, lights);
+    @Override
+    public void load(String fileUrl, boolean asPolygonMesh) throws IOException {
+        loadMaxUrl(fileUrl);
+        if (asPolygonMesh) {
+            throw new RuntimeException("Polygon Mesh is not supported");
+        } else {
+            root = loadMaxUrl(fileUrl);
         }
     }
 
@@ -338,26 +252,112 @@ public class MaxLoader extends Importer {
         return new MaxScene(root, lroot);
     }
 
-    private MaxScene root;
+    PointLight loadLight(MaxData.LightNode ln, Transform ntm) {
+        PointLight l = new PointLight();
+        if (ntm != null) {
+            l.setTranslateX(ntm.getTx());
+            l.setTranslateY(ntm.getTy());
+            l.setTranslateZ(ntm.getTz());
+        }
+        l.setColor(Color.color(ln.r, ln.g, ln.b));
+        //        l.setStrength(ln.intensity);     // TODO
+        return l;
+    }
 
-    @Override
-    public void load(String fileUrl, boolean asPolygonMesh) throws IOException {
-        loadMaxUrl(fileUrl);
-        if (asPolygonMesh) {
-            throw new RuntimeException("Polygon Mesh is not supported");
-        } else {
-            root = loadMaxUrl(fileUrl);
+    private void loadMaxMaterials(MaxData.Material mtls[], String dir) {
+        materials = new Material[mtls.length];
+        for (int i = 0; i < mtls.length; i++) {
+            MaxData.Material m = mtls[i];
+            PhongMaterial mtl = new PhongMaterial(Color.color(m.diffuseColor.getX(),
+                                                              m.diffuseColor.getY(),
+                                                              m.diffuseColor.getZ()));
+
+            String fullName = dir + File.separatorChar + m.diffuseMap;
+            Image diffuseMap = loadImage(fullName);
+            Image specularMap = loadImage(getSpecularTextureName(fullName));
+            Image bumpMap = loadImage(getBumpTextureName(fullName));
+            ;
+
+            mtl.setDiffuseMap(diffuseMap);
+            mtl.setSpecularMap(specularMap);
+            mtl.setBumpMap(bumpMap);
+            mtl.setDiffuseColor(Color.WHITE);
+            materials[i] = mtl;
         }
     }
 
-    @Override
-    public Group getRoot() {
-        return root;
+    private void loadMaxMaterialsUrl(MaxData.Material mtls[], String baseURl) {
+        materials = new Material[mtls.length];
+        for (int i = 0; i < mtls.length; i++) {
+            MaxData.Material m = mtls[i];
+            PhongMaterial mtl = new PhongMaterial(Color.color(m.diffuseColor.getX(),
+                                                              m.diffuseColor.getY(),
+                                                              m.diffuseColor.getZ()));
+
+            String fullName = baseURl + m.diffuseMap;
+            Image diffuseMap = new Image(fullName);
+            Image specularMap = new Image(getSpecularTextureName(fullName));
+            Image bumpMap = new Image(getBumpTextureName(fullName));
+            ;
+
+            mtl.setDiffuseMap(diffuseMap);
+            mtl.setSpecularMap(specularMap);
+            mtl.setBumpMap(bumpMap);
+            mtl.setDiffuseColor(Color.WHITE);
+            materials[i] = mtl;
+        }
     }
 
-    @Override
-    public boolean isSupported(String extension) {
-        return extension != null && extension.equals("ase");
+    private MeshView loadMaxMeshView(MaxData.GeomNode maxNode, MaxData maxData,
+                                     Transform tm) {
+        Mesh mesh = createMaxMesh(maxNode, tm);
+        MeshView meshView = new MeshView();
+        meshView.setMesh(mesh);
+        meshView.setMaterial(materials[maxNode.materialRef]);
+        // Color amb = color(maxData.materials[maxNode.materialRef].ambientColor);
+        //meshView.setAmbient(amb);
+
+        meshView.setUserData(maxNode.name);
+        // meshView.setWireframe(true);
+        return meshView;
+    }
+
+    private Node loadMaxNode(MaxData.Node maxNode, MaxData maxData) {
+        Transform ntm = loadNodeTM(maxNode.nodeTM);
+
+        //        Translate tm = new Translate(ntm.getTx(), ntm.getTy(), ntm.getTz());
+        Group group = null;
+        if (maxNode.children != null) {
+            group = new Group();
+
+            //            group.getTransforms().add(tm);
+            for (MaxData.Node maxChild : maxNode.children) {
+                Node child = loadMaxNode(maxChild, maxData);
+                if (child != null) {
+                    group.getChildren()
+                         .add(child);
+                }
+            }
+        }
+
+        Node node = null;
+
+        if (maxNode instanceof MaxData.GeomNode) {
+            MaxData.GeomNode geomNode = (MaxData.GeomNode) maxNode;
+            node = loadMaxMeshView(geomNode, maxData, null /* tm */);
+        }
+
+        if ((maxNode instanceof MaxData.LightNode)) {
+            node = loadLight((MaxData.LightNode) maxNode, ntm);
+        }
+
+        if (group != null && node != null) {
+            //          meshView.getTransforms().add(tm);
+            group.getChildren()
+                 .add(node);
+        }
+
+        return group != null ? group : node;
     }
 
 }

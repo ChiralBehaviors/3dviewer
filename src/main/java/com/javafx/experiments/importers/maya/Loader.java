@@ -86,52 +86,152 @@ import javafx.util.Duration;
 
 /** Loader */
 class Loader {
+    static class VertexHash {
+        private int   normalIndex;
+        private int[] uvIndices;
+        private int   vertexIndex;
+
+        VertexHash(int vertexIndex, int normalIndex, int[] uvIndices) {
+            this.vertexIndex = vertexIndex;
+            this.normalIndex = normalIndex;
+            if (uvIndices != null) {
+                this.uvIndices = uvIndices.clone();
+            }
+        }
+
+        @Override
+        public boolean equals(Object arg) {
+            if (arg == null || !(arg instanceof VertexHash)) {
+                return false;
+            }
+
+            VertexHash other = (VertexHash) arg;
+            if (vertexIndex != other.vertexIndex) {
+                return false;
+            }
+            if (normalIndex != other.normalIndex) {
+                return false;
+            }
+            if ((uvIndices != null) != (other.uvIndices != null)) {
+                return false;
+            }
+            if (uvIndices != null) {
+                if (uvIndices.length != other.uvIndices.length) {
+                    return false;
+                }
+                for (int i = 0; i < uvIndices.length; i++) {
+                    if (uvIndices[i] != other.uvIndices[i]) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int code = vertexIndex;
+            code *= 17;
+            code += normalIndex;
+            if (uvIndices != null) {
+                for (int uvIndice : uvIndices) {
+                    code *= 17;
+                    code += uvIndice;
+                }
+            }
+            return code;
+        }
+    }
+
+    private class SkinningMeshTimer extends AnimationTimer {
+        private SkinningMesh mesh;
+
+        SkinningMeshTimer(SkinningMesh mesh) {
+            this.mesh = mesh;
+        }
+
+        @Override
+        public void handle(long l) {
+            mesh.update();
+        }
+    }
+
     public static final boolean DEBUG       = false;
+
     public static final boolean WARN        = false;
+    // Experimentally trying to land the frames on whole frame values
+    // Duration is still double, but internally, in Animation/Timeline,
+    // the time is discrete.  6000 units per second.
+    // Without this EPSILON, the frames might not land on whole frame values.
+    // 0.000001f seems to work for now
+    // 0.0000001f was too small on a trial run
+    static final float          EPSILON     = 0.000001f;
 
-    MEnv                        env;
-
-    int                         startFrame;
-    int                         endFrame;
-
-    MNodeType                   transformType;
-    MNodeType                   jointType;
-    MNodeType                   meshType;
-    MNodeType                   cameraType;
+    static final float          MAXIMUM     = 10000000.0f;
     MNodeType                   animCurve;
     MNodeType                   animCurveTA;
     MNodeType                   animCurveUA;
     MNodeType                   animCurveUL;
     MNodeType                   animCurveUT;
     MNodeType                   animCurveUU;
-
-    MNodeType                   lambertType;
-    MNodeType                   reflectType;
-    MNodeType                   blinnType;
-    MNodeType                   phongType;
-    MNodeType                   fileType;
-    MNodeType                   skinClusterType;
     MNodeType                   blendShapeType;
-    MNodeType                   groupPartsType;
-    MNodeType                   shadingEngineType;
+    MNodeType                   blinnType;
+    MNodeType                   cameraType;
 
+    int                         endFrame;
+    MEnv                        env;
+    MNodeType                   fileType;
+    float                       FPS         = 24.0f;
+    MNodeType                   groupPartsType;
+    MNodeType                   jointType;
+    Map<Float, List<KeyValue>>  keyFrameMap = new TreeMap<>();
+    MNodeType                   lambertType;
     // [Note to Alex]: I've re-enabled joints, but lets not use rootJoint [John]
     // Joint rootJoint; //NO_JOINTS
     Map<MNode, Node>            loaded      = new HashMap<MNode, Node>();
 
-    Map<Float, List<KeyValue>>  keyFrameMap = new TreeMap<>();
-
     Map<Node, MNode>            meshParents = new HashMap<Node, MNode>();
 
-    private MFloat3Array        mVerts;
+    MNodeType                   meshType;
+
+    MNodeType                   phongType;
+
+    MNodeType                   reflectType;
+    MNodeType                   shadingEngineType;
+
+    MNodeType                   skinClusterType;
+    int                         startFrame;
+    float                       TAN_CLAMPED = 10;
+    // Empirically derived from playing with animation curve editor
+    float                       TAN_EPSILON = 0.05f;
+    float                       TAN_FIXED   = 1;
+
+    float                       TAN_FLAT    = 3;
+
+    float                       TAN_LINEAR  = 2;
+
+    float                       TAN_PLATEAU = 16;
+
+    float                       TAN_SPLINE  = 9;
+
+    float                       TAN_STEPPED = 5;
+
+    MNodeType                   transformType;
+
+    private boolean             asPolygonMesh;
+
     // Optionally force per-face per-vertex normal generation
     private int[]               edgeData;
 
-    private List<MData>         uvSet;
-    private int                 uvChannel;
     private MFloat3Array        mPointTweaks;
+
+    private MFloat3Array        mVerts;
+
     private URL                 url;
-    private boolean             asPolygonMesh;
+
+    private int                 uvChannel;
+
+    private List<MData>         uvSet;
 
     //=========================================================================
     // Loader.load
@@ -159,87 +259,120 @@ class Loader {
         }
     }
 
-    //=========================================================================
-    // Loader.loadModel
-    //=========================================================================
-    void loadModel() {
-        startFrame = Math.round(env.getPlaybackStart() - 1);
-        endFrame = Math.round(env.getPlaybackEnd() - 1);
-        transformType = env.findNodeType("transform");
-        jointType = env.findNodeType("joint");
-        meshType = env.findNodeType("mesh");
-        cameraType = env.findNodeType("camera");
-        animCurve = env.findNodeType("animCurve");
-        animCurveTA = env.findNodeType("animCurveTA");
-        animCurveUA = env.findNodeType("animCurveUA");
-        animCurveUL = env.findNodeType("animCurveUL");
-        animCurveUT = env.findNodeType("animCurveUT");
-        animCurveUU = env.findNodeType("animCurveUU");
-
-        lambertType = env.findNodeType("lambert");
-        reflectType = env.findNodeType("reflect");
-        blinnType = env.findNodeType("blinn");
-        phongType = env.findNodeType("phong");
-        fileType = env.findNodeType("file");
-        skinClusterType = env.findNodeType("skinCluster");
-        groupPartsType = env.findNodeType("groupParts");
-        shadingEngineType = env.findNodeType("shadingEngine");
-        blendShapeType = env.findNodeType("blendShape");
+    protected Image loadImageFromFtnAttr(MNode fileNode, String name) {
+        Image image = null;
+        MString fileName = (MString) fileNode.getAttr("ftn");
+        String imageFilename = fileName.get();
+        try {
+            File file = new File(imageFilename);
+            String filePath;
+            if (file.exists()) {
+                filePath = file.toURI()
+                               .toString();
+            } else {
+                filePath = new URL(url, imageFilename).toString();
+            }
+            image = new Image(filePath);
+            if (DEBUG) {
+                System.out.println(name + " = " + filePath);
+                System.out.println(name + " w = " + image.getWidth() + " h = "
+                                   + image.getHeight());
+            }
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(MayaImporter.class.getName())
+                  .log(Level.SEVERE,
+                       "Failed to load " + name + " '" + imageFilename + "'!",
+                       ex);
+        }
+        return image;
     }
 
-    //=========================================================================
-    // Loader.resolveNode
-    //-------------------------------------------------------------------------
-    // Loader.resolveNode looks up MNode in the HashMap Map<MNode, Node> loaded
-    // and returns the Node to which this map maps the MNode.
-    // Also, if the node that its looking up hasn't been processed yet,
-    // it processes the node.
-    //=========================================================================
-    Node resolveNode(MNode n) {
-        // System.out.println("--> resolveNode: " + n);
-        // if the node hasn't already been processed, then process the node
-        if (!loaded.containsKey(n)) {
-            // System.out.println("--> containsKey: " + n);
-            processNode(n);
-            // System.out.println("    loaded.get(n) " + loaded.get(n));
-        }
-        return loaded.get(n);
-    }
-
-    //=========================================================================
-    // Loader.processNode
-    //=========================================================================
-    void processNode(MNode n) {
-        Group parentNode = null;
-        for (MNode p : n.getParentNodes()) {
-            parentNode = (Group) resolveNode(p);
-        }
-        Node result = loaded.get(n);
-        // if the result is null, then it hasn't been added to the map yet
-        // so go ahead and process it
-        if (result == null) {
-            if (n.isInstanceOf(shadingEngineType)) {
-                //                System.out.println("==> Found a node of shadingEngineType: " + n);
-            } else if (n.isInstanceOf(lambertType)) {
-                //                System.out.println("==> Found a node of lambertType: " + n);
-            } else if (n.isInstanceOf(reflectType)) {
-                //                System.out.println("==> Found a node of reflectType: " + n);
-            } else if (n.isInstanceOf(blinnType)) {
-                //                System.out.println("==> Found a node of blinnType: " + n);
-            } else if (n.isInstanceOf(phongType)) {
-                //                System.out.println("==> Found a node of phongType: " + n);
-            } else if (n.isInstanceOf(fileType)) {
-                //                System.out.println("==> Found a node of fileType: " + n);
-            } else if (n.isInstanceOf(skinClusterType)) {
-                processClusterType(n);
-            } else if (n.isInstanceOf(meshType)) {
-                processMeshType(n, parentNode);
-            } else if (n.isInstanceOf(jointType)) {
-                processJointType(n, parentNode);
-            } else if (n.isInstanceOf(transformType)) {
-                processTransformType(n, parentNode);
-            } else if (n.isInstanceOf(animCurve)) {
-                processAnimCurve(n);
+    protected void processAnimCurve(MNode n) {
+        // if (DEBUG) System.out.println("processing anim curve");
+        List<MPath> toPaths = n.getPathsConnectingFrom("o");
+        loaded.put(n, null);
+        for (MPath path : toPaths) {
+            MNode toNode = path.getTargetNode();
+            // if (DEBUG) System.out.println("toNode = "+ toNode.getNodeType());
+            if (toNode.isInstanceOf(transformType)) {
+                Node to = resolveNode(toNode);
+                if (to instanceof MayaGroup) {
+                    MayaGroup g = (MayaGroup) to;
+                    DoubleProperty ref = null;
+                    String s = path.getComponentSelector();
+                    // if (DEBUG) System.out.println("selector = " + s);
+                    if ("t[0]".equals(s)) {
+                        ref = g.t.xProperty();
+                    } else if ("t[1]".equals(s)) {
+                        ref = g.t.yProperty();
+                    } else if ("t[2]".equals(s)) {
+                        ref = g.t.zProperty();
+                    } else if ("s[0]".equals(s)) {
+                        ref = g.s.xProperty();
+                    } else if ("s[1]".equals(s)) {
+                        ref = g.s.yProperty();
+                    } else if ("s[2]".equals(s)) {
+                        ref = g.s.zProperty();
+                    } else if ("r[0]".equals(s)) {
+                        ref = g.rx.angleProperty();
+                    } else if ("r[1]".equals(s)) {
+                        ref = g.ry.angleProperty();
+                    } else if ("r[2]".equals(s)) {
+                        ref = g.rz.angleProperty();
+                    } else if ("rp[0]".equals(s)) {
+                        ref = g.rp.xProperty();
+                    } else if ("rp[1]".equals(s)) {
+                        ref = g.rp.yProperty();
+                    } else if ("rp[2]".equals(s)) {
+                        ref = g.rp.zProperty();
+                    } else if ("sp[0]".equals(s)) {
+                        ref = g.sp.xProperty();
+                    } else if ("sp[1]".equals(s)) {
+                        ref = g.sp.yProperty();
+                    } else if ("sp[2]".equals(s)) {
+                        ref = g.sp.zProperty();
+                    }
+                    // Note: may also want to consider adding rpt in addition to rp and sp
+                    if (ref != null) {
+                        convertAnimCurveRange(n, ref, true);
+                    }
+                }
+                // [Note to Alex]: I've re-enabled joints, but not skinning yet [John]
+                if (to instanceof Joint) {
+                    Joint j = (Joint) to;
+                    DoubleProperty ref = null;
+                    String s = path.getComponentSelector();
+                    // if (DEBUG) System.out.println("selector = " + s);
+                    if ("t[0]".equals(s)) {
+                        ref = j.t.xProperty();
+                    } else if ("t[1]".equals(s)) {
+                        ref = j.t.yProperty();
+                    } else if ("t[2]".equals(s)) {
+                        ref = j.t.zProperty();
+                    } else if ("s[0]".equals(s)) {
+                        ref = j.s.xProperty();
+                    } else if ("s[1]".equals(s)) {
+                        ref = j.s.yProperty();
+                    } else if ("s[2]".equals(s)) {
+                        ref = j.s.zProperty();
+                    } else if ("jo[0]".equals(s)) {
+                        ref = j.jox.angleProperty();
+                    } else if ("jo[1]".equals(s)) {
+                        ref = j.joy.angleProperty();
+                    } else if ("jo[2]".equals(s)) {
+                        ref = j.joz.angleProperty();
+                    } else if ("r[0]".equals(s)) {
+                        ref = j.rx.angleProperty();
+                    } else if ("r[1]".equals(s)) {
+                        ref = j.ry.angleProperty();
+                    } else if ("r[2]".equals(s)) {
+                        ref = j.rz.angleProperty();
+                    }
+                    if (ref != null) {
+                        convertAnimCurveRange(n, ref, true);
+                    }
+                }
+                break;
             }
         }
     }
@@ -341,45 +474,95 @@ class Loader {
         }
     }
 
-    private class SkinningMeshTimer extends AnimationTimer {
-        private SkinningMesh mesh;
+    protected void processJointType(MNode n, Group parentNode) {
+        MFloat3 t = (MFloat3) n.getAttr("t");
+        MFloat3 jo = (MFloat3) n.getAttr("jo");
+        n.getAttr("r");
+        MFloat3 s = (MFloat3) n.getAttr("s");
+        String id = n.getName();
 
-        SkinningMeshTimer(SkinningMesh mesh) {
-            this.mesh = mesh;
-        }
+        Joint j = new Joint();
+        j.setId(id);
 
-        @Override
-        public void handle(long l) {
-            mesh.update();
-        }
-    }
+        // There's various ways to get the same thing:
+        // n.getAttr("r").get()[0]
+        // n.getAttr("r").getX()
+        // n.getAttr("rx")
+        // Up to you which you prefer
 
-    protected Image loadImageFromFtnAttr(MNode fileNode, String name) {
-        Image image = null;
-        MString fileName = (MString) fileNode.getAttr("ftn");
-        String imageFilename = fileName.get();
-        try {
-            File file = new File(imageFilename);
-            String filePath;
-            if (file.exists()) {
-                filePath = file.toURI()
-                               .toString();
+        j.t.setX(t.get()[0]);
+        j.t.setY(t.get()[1]);
+        j.t.setZ(t.get()[2]);
+
+        // if ssc (Segment Scale Compensate) is false, then it is = 1, 1, 1
+        boolean ssc = ((MBool) n.getAttr("ssc")).get();
+        if (ssc) {
+            List<MNode> parents = n.getParentNodes();
+            if (parents.size() > 0) {
+                MFloat3 parent_s = (MFloat3) n.getParentNodes()
+                                              .get(0)
+                                              .getAttr("s");
+                j.is.setX(1f / parent_s.getX());
+                j.is.setY(1f / parent_s.getY());
+                j.is.setZ(1f / parent_s.getZ());
             } else {
-                filePath = new URL(url, imageFilename).toString();
+                j.is.setX(1f);
+                j.is.setY(1f);
+                j.is.setZ(1f);
             }
-            image = new Image(filePath);
-            if (DEBUG) {
-                System.out.println(name + " = " + filePath);
-                System.out.println(name + " w = " + image.getWidth() + " h = "
-                                   + image.getHeight());
-            }
-        } catch (MalformedURLException ex) {
-            Logger.getLogger(MayaImporter.class.getName())
-                  .log(Level.SEVERE,
-                       "Failed to load " + name + " '" + imageFilename + "'!",
-                       ex);
+        } else {
+            j.is.setX(1f);
+            j.is.setY(1f);
+            j.is.setZ(1f);
         }
-        return image;
+
+        /*
+        // This code doesn't seem to work right:
+        MFloat jox = (MFloat) n.getAttr("jox");
+        MFloat joy = (MFloat) n.getAttr("joy");
+        MFloat joz = (MFloat) n.getAttr("joz");
+        j.jox.setAngle(jox.get());
+        j.joy.setAngle(joy.get());
+        j.joz.setAngle(joz.get());
+        // The following code works right:
+        */
+
+        if (jo != null) {
+            j.jox.setAngle(jo.getX());
+            j.joy.setAngle(jo.getY());
+            j.joz.setAngle(jo.getZ());
+        } else {
+            j.jox.setAngle(0f);
+            j.joy.setAngle(0f);
+            j.joz.setAngle(0f);
+        }
+
+        MFloat rx = (MFloat) n.getAttr("rx");
+        MFloat ry = (MFloat) n.getAttr("ry");
+        MFloat rz = (MFloat) n.getAttr("rz");
+        j.rx.setAngle(rx.get());
+        j.ry.setAngle(ry.get());
+        j.rz.setAngle(rz.get());
+
+        j.s.setX(s.get()[0]);
+        j.s.setY(s.get()[1]);
+        j.s.setZ(s.get()[2]);
+
+        // Add the Joint to the map
+        loaded.put(n, j);
+        j.setDepthTest(DepthTest.ENABLE);
+        // Add the Joint to its JavaFX parent
+        if (parentNode != null) {
+            parentNode.getChildren()
+                      .add(j);
+            if (DEBUG) {
+                System.out.println("j.getDepthTest() : " + j.getDepthTest());
+            }
+        }
+        if (parentNode == null || !(parentNode instanceof Joint)) {
+            // [Note to Alex]: I've re-enabled joints, but lets not use rootJoint [John]
+            // rootJoint = j;
+        }
     }
 
     protected void processMeshType(MNode n,
@@ -559,97 +742,6 @@ class Loader {
         }
     }
 
-    protected void processJointType(MNode n, Group parentNode) {
-        MFloat3 t = (MFloat3) n.getAttr("t");
-        MFloat3 jo = (MFloat3) n.getAttr("jo");
-        n.getAttr("r");
-        MFloat3 s = (MFloat3) n.getAttr("s");
-        String id = n.getName();
-
-        Joint j = new Joint();
-        j.setId(id);
-
-        // There's various ways to get the same thing:
-        // n.getAttr("r").get()[0]
-        // n.getAttr("r").getX()
-        // n.getAttr("rx")
-        // Up to you which you prefer
-
-        j.t.setX(t.get()[0]);
-        j.t.setY(t.get()[1]);
-        j.t.setZ(t.get()[2]);
-
-        // if ssc (Segment Scale Compensate) is false, then it is = 1, 1, 1
-        boolean ssc = ((MBool) n.getAttr("ssc")).get();
-        if (ssc) {
-            List<MNode> parents = n.getParentNodes();
-            if (parents.size() > 0) {
-                MFloat3 parent_s = (MFloat3) n.getParentNodes()
-                                              .get(0)
-                                              .getAttr("s");
-                j.is.setX(1f / parent_s.getX());
-                j.is.setY(1f / parent_s.getY());
-                j.is.setZ(1f / parent_s.getZ());
-            } else {
-                j.is.setX(1f);
-                j.is.setY(1f);
-                j.is.setZ(1f);
-            }
-        } else {
-            j.is.setX(1f);
-            j.is.setY(1f);
-            j.is.setZ(1f);
-        }
-
-        /*
-        // This code doesn't seem to work right:
-        MFloat jox = (MFloat) n.getAttr("jox");
-        MFloat joy = (MFloat) n.getAttr("joy");
-        MFloat joz = (MFloat) n.getAttr("joz");
-        j.jox.setAngle(jox.get());
-        j.joy.setAngle(joy.get());
-        j.joz.setAngle(joz.get());
-        // The following code works right:
-        */
-
-        if (jo != null) {
-            j.jox.setAngle(jo.getX());
-            j.joy.setAngle(jo.getY());
-            j.joz.setAngle(jo.getZ());
-        } else {
-            j.jox.setAngle(0f);
-            j.joy.setAngle(0f);
-            j.joz.setAngle(0f);
-        }
-
-        MFloat rx = (MFloat) n.getAttr("rx");
-        MFloat ry = (MFloat) n.getAttr("ry");
-        MFloat rz = (MFloat) n.getAttr("rz");
-        j.rx.setAngle(rx.get());
-        j.ry.setAngle(ry.get());
-        j.rz.setAngle(rz.get());
-
-        j.s.setX(s.get()[0]);
-        j.s.setY(s.get()[1]);
-        j.s.setZ(s.get()[2]);
-
-        // Add the Joint to the map
-        loaded.put(n, j);
-        j.setDepthTest(DepthTest.ENABLE);
-        // Add the Joint to its JavaFX parent
-        if (parentNode != null) {
-            parentNode.getChildren()
-                      .add(j);
-            if (DEBUG) {
-                System.out.println("j.getDepthTest() : " + j.getDepthTest());
-            }
-        }
-        if (parentNode == null || !(parentNode instanceof Joint)) {
-            // [Note to Alex]: I've re-enabled joints, but lets not use rootJoint [John]
-            // rootJoint = j;
-        }
-    }
-
     protected void processTransformType(MNode n, Group parentNode) {
         MFloat3 t = (MFloat3) n.getAttr("t");
         n.getAttr("r");
@@ -729,186 +821,173 @@ class Loader {
         }
     }
 
-    protected void processAnimCurve(MNode n) {
-        // if (DEBUG) System.out.println("processing anim curve");
-        List<MPath> toPaths = n.getPathsConnectingFrom("o");
-        loaded.put(n, null);
-        for (MPath path : toPaths) {
-            MNode toNode = path.getTargetNode();
-            // if (DEBUG) System.out.println("toNode = "+ toNode.getNodeType());
-            if (toNode.isInstanceOf(transformType)) {
-                Node to = resolveNode(toNode);
-                if (to instanceof MayaGroup) {
-                    MayaGroup g = (MayaGroup) to;
-                    DoubleProperty ref = null;
-                    String s = path.getComponentSelector();
-                    // if (DEBUG) System.out.println("selector = " + s);
-                    if ("t[0]".equals(s)) {
-                        ref = g.t.xProperty();
-                    } else if ("t[1]".equals(s)) {
-                        ref = g.t.yProperty();
-                    } else if ("t[2]".equals(s)) {
-                        ref = g.t.zProperty();
-                    } else if ("s[0]".equals(s)) {
-                        ref = g.s.xProperty();
-                    } else if ("s[1]".equals(s)) {
-                        ref = g.s.yProperty();
-                    } else if ("s[2]".equals(s)) {
-                        ref = g.s.zProperty();
-                    } else if ("r[0]".equals(s)) {
-                        ref = g.rx.angleProperty();
-                    } else if ("r[1]".equals(s)) {
-                        ref = g.ry.angleProperty();
-                    } else if ("r[2]".equals(s)) {
-                        ref = g.rz.angleProperty();
-                    } else if ("rp[0]".equals(s)) {
-                        ref = g.rp.xProperty();
-                    } else if ("rp[1]".equals(s)) {
-                        ref = g.rp.yProperty();
-                    } else if ("rp[2]".equals(s)) {
-                        ref = g.rp.zProperty();
-                    } else if ("sp[0]".equals(s)) {
-                        ref = g.sp.xProperty();
-                    } else if ("sp[1]".equals(s)) {
-                        ref = g.sp.yProperty();
-                    } else if ("sp[2]".equals(s)) {
-                        ref = g.sp.zProperty();
-                    }
-                    // Note: may also want to consider adding rpt in addition to rp and sp
-                    if (ref != null) {
-                        convertAnimCurveRange(n, ref, true);
-                    }
-                }
-                // [Note to Alex]: I've re-enabled joints, but not skinning yet [John]
-                if (to instanceof Joint) {
-                    Joint j = (Joint) to;
-                    DoubleProperty ref = null;
-                    String s = path.getComponentSelector();
-                    // if (DEBUG) System.out.println("selector = " + s);
-                    if ("t[0]".equals(s)) {
-                        ref = j.t.xProperty();
-                    } else if ("t[1]".equals(s)) {
-                        ref = j.t.yProperty();
-                    } else if ("t[2]".equals(s)) {
-                        ref = j.t.zProperty();
-                    } else if ("s[0]".equals(s)) {
-                        ref = j.s.xProperty();
-                    } else if ("s[1]".equals(s)) {
-                        ref = j.s.yProperty();
-                    } else if ("s[2]".equals(s)) {
-                        ref = j.s.zProperty();
-                    } else if ("jo[0]".equals(s)) {
-                        ref = j.jox.angleProperty();
-                    } else if ("jo[1]".equals(s)) {
-                        ref = j.joy.angleProperty();
-                    } else if ("jo[2]".equals(s)) {
-                        ref = j.joz.angleProperty();
-                    } else if ("r[0]".equals(s)) {
-                        ref = j.rx.angleProperty();
-                    } else if ("r[1]".equals(s)) {
-                        ref = j.ry.angleProperty();
-                    } else if ("r[2]".equals(s)) {
-                        ref = j.rz.angleProperty();
-                    }
-                    if (ref != null) {
-                        convertAnimCurveRange(n, ref, true);
-                    }
-                }
-                break;
-            }
+    //=========================================================================
+    // Loader.addKeyframe
+    //=========================================================================
+    void addKeyframe(float t, KeyValue keyValue) {
+        List<KeyValue> vals = keyFrameMap.get(t);
+        if (vals == null) {
+            vals = new LinkedList<KeyValue>();
+            keyFrameMap.put(t, vals);
         }
+        vals.add(keyValue);
     }
 
-    private Object convertToFXMesh(MNode n) {
-        mVerts = (MFloat3Array) n.getAttr("vt");
-        MPolyFace mPolys = (MPolyFace) n.getAttr("fc");
-        mPointTweaks = (MFloat3Array) n.getAttr("pt");
-        MInt3Array mEdges = (MInt3Array) n.getAttr("ed");
-        edgeData = mEdges.get();
-        uvSet = ((MArray) n.getAttr("uvst")).get();
-        String currentUVSet = ((MString) n.getAttr("cuvs")).get();
-        for (int i = 0; i < uvSet.size(); i++) {
-            if (((MString) uvSet.get(i)
-                                .getData("uvsn")).get()
-                                                 .equals(currentUVSet)) {
-                uvChannel = i;
-            }
-        }
-
-        if (mPolys.getFaces() == null) {
-            if (asPolygonMesh) {
-                return new PolygonMesh();
+    //=========================================================================
+    // Loader.computeTangent
+    //=========================================================================
+    void computeTangent(float[] keyTimes, float[] keyValues,
+                        boolean[] keysValid, float tangentType,
+                        boolean inTangent, float[] computedTangent) {
+        float[] output = computedTangent;
+        if (tangentType == TAN_LINEAR) {
+            float x0;
+            float x1;
+            float y0;
+            float y1;
+            if (inTangent) {
+                if (!keysValid[0]) {
+                    // Start of the animation curve: doesn't matter
+                    output[0] = 1.0f;
+                    output[1] = 0.0f;
+                    return;
+                }
+                x0 = keyTimes[0];
+                x1 = keyTimes[1];
+                y0 = keyValues[0];
+                y1 = keyValues[1];
             } else {
-                return new TriangleMesh();
+                if (!keysValid[2]) {
+                    // End of the animation curve: doesn't matter
+                    output[0] = 1.0f;
+                    output[1] = 0.0f;
+                    return;
+                }
+                x0 = keyTimes[1];
+                x1 = keyTimes[2];
+                y0 = keyValues[1];
+                y1 = keyValues[2];
             }
+            float dx = x1 - x0;
+            float dy = y1 - y0;
+            output[0] = dx;
+            output[1] = dy;
+            // Fall through to perform normalization
+        } else if (tangentType == TAN_FLAT) {
+            output[0] = 1.0f;
+            output[1] = 0.0f;
+            return;
+        } else if (tangentType == TAN_STEPPED) {
+            // Doesn't matter what the tangent values are -- will use discrete type interpolator
+            return;
+        } else if (tangentType == TAN_SPLINE) {
+            // Whether we're computing the in or out tangent, if we don't have one or the other
+            // keyframe, it reduces to a simpler case
+            if (!(keysValid[0] && keysValid[2])) {
+                // Reduces to the linear case
+                computeTangent(keyTimes, keyValues, keysValid, TAN_LINEAR,
+                               inTangent, computedTangent);
+                return;
+            }
+
+            // Figure out the slope between the adjacent keyframes
+            output[0] = keyTimes[2] - keyTimes[0];
+            output[1] = keyValues[2] - keyValues[0];
+        } else if (tangentType == TAN_CLAMPED) {
+            if (!(keysValid[0] && keysValid[2])) {
+                // Reduces to the linear case at the ends of the animation curve
+                computeTangent(keyTimes, keyValues, keysValid, TAN_LINEAR,
+                               inTangent, computedTangent);
+                return;
+            }
+
+            float inDiff = Math.abs(keyValues[1] - keyValues[0]);
+            float outDiff = Math.abs(keyValues[2] - keyValues[1]);
+
+            if (inDiff <= TAN_EPSILON || outDiff <= TAN_EPSILON) {
+                // The Maya docs say that this reduces to the linear
+                // case. If this were true, then the apparent behavior
+                // would be to compute the linear tangent between the
+                // two keyframes which are closest together, and
+                // reflect that tangent about the current keyframe.
+                // computeTangent(keyTimes, keyValues, keysValid, TAN_LINEAR, (inDiff < outDiff), computedTangent);
+
+                // However, experimentation in the curve editor
+                // clearly indicates for our test cases that flat
+                // rather than linear interpolation is used in this
+                // case. Therefore to match Maya's actual behavior
+                // more closely we do the following.
+                computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
+                               inTangent, computedTangent);
+            } else {
+                // Use spline tangents
+                computeTangent(keyTimes, keyValues, keysValid, TAN_SPLINE,
+                               inTangent, computedTangent);
+            }
+
+            return;
+        } else if (tangentType == TAN_PLATEAU) {
+            if (!(keysValid[0] && keysValid[2])) {
+                // Reduces to the flat case at the ends of the animation curve
+                computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
+                               inTangent, computedTangent);
+                return;
+            }
+
+            // Otherwise, figure out whether we have any local extremum
+            if ((keyValues[1] > keyValues[0] && keyValues[1] > keyValues[2])
+                || (keyValues[1] < keyValues[0]
+                    && keyValues[1] < keyValues[2])) {
+                // Use flat tangent
+                computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
+                               inTangent, computedTangent);
+            } else {
+                // The rule is that we use spline tangents unless
+                // doing so would cause the curve to go outside the
+                // envelope of the keyvalues. To figure this out, we
+                // have to compute both the in and out tangents as
+                // though we were using splines, and see whether the
+                // intermediate bezier control points go outside the
+                // hull.
+                //
+                // Note that it doesn't matter whether we compute the
+                // "in" or "out" tangent at the current point -- the
+                // result is the same.
+                computeTangent(keyTimes, keyValues, keysValid, TAN_SPLINE,
+                               inTangent, computedTangent);
+
+                // Compute the values from the keyframe along the
+                // tangent 1/3 of the way to the previous and next
+                // keyframes
+                float tangent = computedTangent[1] / (computedTangent[0] * FPS);
+                float prev13 = keyValues[1]
+                               - tangent * ((keyTimes[1] - keyTimes[0]) / 3.0f);
+                float next13 = keyValues[1]
+                               + tangent * ((keyTimes[2] - keyTimes[1]) / 3.0f);
+
+                if (isBetween(prev13, keyValues[0], keyValues[2])
+                    && isBetween(next13, keyValues[0], keyValues[2])) {
+                } else {
+                    // Use flat tangent
+                    computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
+                                   inTangent, computedTangent);
+                }
+            }
+
+            return;
         }
 
-        MFloat3Array normals = (MFloat3Array) n.getAttr("n");
-        return buildMeshData(mPolys.getFaces(), normals);
+        // Perform normalization
+        // NOTE the scaling of the X coordinate -- this is needed to match Maya's math
+        output[0] /= FPS;
+        float len = (float) Math.sqrt(output[0] * output[0]
+                                      + output[1] * output[1]);
+        if (len != 0.0f) {
+            output[0] /= len;
+            output[1] /= len;
+        }
+        // println("TAN LINEAR {output[0]} {output[1]}");
     }
-
-    private int edgeVert(int edgeNumber, boolean start) {
-        boolean reverse = (edgeNumber < 0);
-        if (reverse) {
-            edgeNumber = reverse(edgeNumber);
-            return edgeData[3 * edgeNumber + (start ? 1 : 0)];
-        } else {
-            return edgeData[3 * edgeNumber + (start ? 0 : 1)];
-        }
-    }
-
-    private int reverse(int edge) {
-        if (edge < 0) {
-            return -edge - 1;
-        }
-        return edge;
-    }
- 
-    private int edgeStart(int edgeNumber) {
-        return edgeVert(edgeNumber, true);
-    } 
-
-    private float[] getTexCoords(int uvChannel) {
-        if (uvSet == null || uvChannel < 0 || uvChannel >= uvSet.size()) {
-            return new float[] { 0, 0 };
-        }
-        MCompound compound = (MCompound) uvSet.get(uvChannel);
-        MFloat2Array uvs = (MFloat2Array) compound.getFieldData("uvsp");
-        if (uvs == null || uvs.get() == null) {
-            return new float[] { 0, 0 };
-        }
-
-        float[] texCoords = new float[uvs.getSize() * 2];
-        float[] uvsData = uvs.get();
-        for (int i = 0; i < uvs.getSize(); i++) {
-            //note the 1 - v
-            texCoords[i * 2] = uvsData[2 * i];
-            texCoords[i * 2 + 1] = 1 - uvsData[2 * i + 1];
-        }
-        return texCoords;
-    } 
-
-    float              FPS         = 24.0f;
-    float              TAN_FIXED   = 1;
-    float              TAN_LINEAR  = 2;
-    float              TAN_FLAT    = 3;
-    float              TAN_STEPPED = 5;
-    float              TAN_SPLINE  = 9;
-    float              TAN_CLAMPED = 10;
-    float              TAN_PLATEAU = 16;
-
-    // Experimentally trying to land the frames on whole frame values
-    // Duration is still double, but internally, in Animation/Timeline,
-    // the time is discrete.  6000 units per second.
-    // Without this EPSILON, the frames might not land on whole frame values.
-    // 0.000001f seems to work for now
-    // 0.0000001f was too small on a trial run
-    static final float EPSILON     = 0.000001f;
-
-    static final float MAXIMUM     = 10000000.0f;
-
-    // Empirically derived from playing with animation curve editor
-    float              TAN_EPSILON = 0.05f;
 
     //=========================================================================
     // Loader.convertAnimCurveRange
@@ -990,7 +1069,7 @@ class Loader {
             MPath toPath = (MPath) obj;
             toPath.getComponentSelector();
             toPath.getTargetNode()
-                               .getName();
+                  .getName();
         }
 
         for (int j = 0; j < len; j++) {
@@ -1290,16 +1369,25 @@ class Loader {
         }
     }
 
-    //=========================================================================
-    // Loader.addKeyframe
-    //=========================================================================
-    void addKeyframe(float t, KeyValue keyValue) {
-        List<KeyValue> vals = keyFrameMap.get(t);
-        if (vals == null) {
-            vals = new LinkedList<KeyValue>();
-            keyFrameMap.put(t, vals);
+    Affine convertMatrix(MFloatArray mayaMatrix) {
+        if (mayaMatrix == null || mayaMatrix.getSize() < 16) {
+            return new Affine();
         }
-        vals.add(keyValue);
+
+        Affine result = new Affine();
+        result.setMxx(mayaMatrix.get(0 * 4 + 0));
+        result.setMxy(mayaMatrix.get(1 * 4 + 0));
+        result.setMxz(mayaMatrix.get(2 * 4 + 0));
+        result.setMyx(mayaMatrix.get(0 * 4 + 1));
+        result.setMyy(mayaMatrix.get(1 * 4 + 1));
+        result.setMyz(mayaMatrix.get(2 * 4 + 1));
+        result.setMzx(mayaMatrix.get(0 * 4 + 2));
+        result.setMzy(mayaMatrix.get(1 * 4 + 2));
+        result.setMzz(mayaMatrix.get(2 * 4 + 2));
+        result.setTx(mayaMatrix.get(3 * 4 + 0));
+        result.setTy(mayaMatrix.get(3 * 4 + 1));
+        result.setTz(mayaMatrix.get(3 * 4 + 2));
+        return result;
     }
 
     //=========================================================================
@@ -1394,223 +1482,192 @@ class Loader {
     }
 
     //=========================================================================
-    // Loader.computeTangent
-    //=========================================================================
-    void computeTangent(float[] keyTimes, float[] keyValues,
-                        boolean[] keysValid, float tangentType,
-                        boolean inTangent, float[] computedTangent) {
-        float[] output = computedTangent;
-        if (tangentType == TAN_LINEAR) {
-            float x0;
-            float x1;
-            float y0;
-            float y1;
-            if (inTangent) {
-                if (!keysValid[0]) {
-                    // Start of the animation curve: doesn't matter
-                    output[0] = 1.0f;
-                    output[1] = 0.0f;
-                    return;
-                }
-                x0 = keyTimes[0];
-                x1 = keyTimes[1];
-                y0 = keyValues[0];
-                y1 = keyValues[1];
-            } else {
-                if (!keysValid[2]) {
-                    // End of the animation curve: doesn't matter
-                    output[0] = 1.0f;
-                    output[1] = 0.0f;
-                    return;
-                }
-                x0 = keyTimes[1];
-                x1 = keyTimes[2];
-                y0 = keyValues[1];
-                y1 = keyValues[2];
-            }
-            float dx = x1 - x0;
-            float dy = y1 - y0;
-            output[0] = dx;
-            output[1] = dy;
-            // Fall through to perform normalization
-        } else if (tangentType == TAN_FLAT) {
-            output[0] = 1.0f;
-            output[1] = 0.0f;
-            return;
-        } else if (tangentType == TAN_STEPPED) {
-            // Doesn't matter what the tangent values are -- will use discrete type interpolator
-            return;
-        } else if (tangentType == TAN_SPLINE) {
-            // Whether we're computing the in or out tangent, if we don't have one or the other
-            // keyframe, it reduces to a simpler case
-            if (!(keysValid[0] && keysValid[2])) {
-                // Reduces to the linear case
-                computeTangent(keyTimes, keyValues, keysValid, TAN_LINEAR,
-                               inTangent, computedTangent);
-                return;
-            }
-
-            // Figure out the slope between the adjacent keyframes
-            output[0] = keyTimes[2] - keyTimes[0];
-            output[1] = keyValues[2] - keyValues[0];
-        } else if (tangentType == TAN_CLAMPED) {
-            if (!(keysValid[0] && keysValid[2])) {
-                // Reduces to the linear case at the ends of the animation curve
-                computeTangent(keyTimes, keyValues, keysValid, TAN_LINEAR,
-                               inTangent, computedTangent);
-                return;
-            }
-
-            float inDiff = Math.abs(keyValues[1] - keyValues[0]);
-            float outDiff = Math.abs(keyValues[2] - keyValues[1]);
-
-            if (inDiff <= TAN_EPSILON || outDiff <= TAN_EPSILON) {
-                // The Maya docs say that this reduces to the linear
-                // case. If this were true, then the apparent behavior
-                // would be to compute the linear tangent between the
-                // two keyframes which are closest together, and
-                // reflect that tangent about the current keyframe.
-                // computeTangent(keyTimes, keyValues, keysValid, TAN_LINEAR, (inDiff < outDiff), computedTangent);
-
-                // However, experimentation in the curve editor
-                // clearly indicates for our test cases that flat
-                // rather than linear interpolation is used in this
-                // case. Therefore to match Maya's actual behavior
-                // more closely we do the following.
-                computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
-                               inTangent, computedTangent);
-            } else {
-                // Use spline tangents
-                computeTangent(keyTimes, keyValues, keysValid, TAN_SPLINE,
-                               inTangent, computedTangent);
-            }
-
-            return;
-        } else if (tangentType == TAN_PLATEAU) {
-            if (!(keysValid[0] && keysValid[2])) {
-                // Reduces to the flat case at the ends of the animation curve
-                computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
-                               inTangent, computedTangent);
-                return;
-            }
-
-            // Otherwise, figure out whether we have any local extremum
-            if ((keyValues[1] > keyValues[0] && keyValues[1] > keyValues[2])
-                || (keyValues[1] < keyValues[0]
-                    && keyValues[1] < keyValues[2])) {
-                // Use flat tangent
-                computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
-                               inTangent, computedTangent);
-            } else {
-                // The rule is that we use spline tangents unless
-                // doing so would cause the curve to go outside the
-                // envelope of the keyvalues. To figure this out, we
-                // have to compute both the in and out tangents as
-                // though we were using splines, and see whether the
-                // intermediate bezier control points go outside the
-                // hull.
-                //
-                // Note that it doesn't matter whether we compute the
-                // "in" or "out" tangent at the current point -- the
-                // result is the same.
-                computeTangent(keyTimes, keyValues, keysValid, TAN_SPLINE,
-                               inTangent, computedTangent);
-
-                // Compute the values from the keyframe along the
-                // tangent 1/3 of the way to the previous and next
-                // keyframes
-                float tangent = computedTangent[1] / (computedTangent[0] * FPS);
-                float prev13 = keyValues[1]
-                               - tangent * ((keyTimes[1] - keyTimes[0]) / 3.0f);
-                float next13 = keyValues[1]
-                               + tangent * ((keyTimes[2] - keyTimes[1]) / 3.0f);
-
-                if (isBetween(prev13, keyValues[0], keyValues[2])
-                    && isBetween(next13, keyValues[0], keyValues[2])) {
-                } else {
-                    // Use flat tangent
-                    computeTangent(keyTimes, keyValues, keysValid, TAN_FLAT,
-                                   inTangent, computedTangent);
-                }
-            }
-
-            return;
-        }
-
-        // Perform normalization
-        // NOTE the scaling of the X coordinate -- this is needed to match Maya's math
-        output[0] /= FPS;
-        float len = (float) Math.sqrt(output[0] * output[0]
-                                      + output[1] * output[1]);
-        if (len != 0.0f) {
-            output[0] /= len;
-            output[1] /= len;
-        }
-        // println("TAN LINEAR {output[0]} {output[1]}");
-    }
-
-    //=========================================================================
     // Loader.isBetween
     //=========================================================================
     boolean isBetween(float value, float v1, float v2) {
         return ((v1 <= value && value <= v2) || (v1 >= value && value >= v2));
     }
 
-    static class VertexHash {
-        private int   vertexIndex;
-        private int   normalIndex;
-        private int[] uvIndices;
+    //=========================================================================
+    // Loader.loadModel
+    //=========================================================================
+    void loadModel() {
+        startFrame = Math.round(env.getPlaybackStart() - 1);
+        endFrame = Math.round(env.getPlaybackEnd() - 1);
+        transformType = env.findNodeType("transform");
+        jointType = env.findNodeType("joint");
+        meshType = env.findNodeType("mesh");
+        cameraType = env.findNodeType("camera");
+        animCurve = env.findNodeType("animCurve");
+        animCurveTA = env.findNodeType("animCurveTA");
+        animCurveUA = env.findNodeType("animCurveUA");
+        animCurveUL = env.findNodeType("animCurveUL");
+        animCurveUT = env.findNodeType("animCurveUT");
+        animCurveUU = env.findNodeType("animCurveUU");
 
-        VertexHash(int vertexIndex, int normalIndex, int[] uvIndices) {
-            this.vertexIndex = vertexIndex;
-            this.normalIndex = normalIndex;
-            if (uvIndices != null) {
-                this.uvIndices = uvIndices.clone();
+        lambertType = env.findNodeType("lambert");
+        reflectType = env.findNodeType("reflect");
+        blinnType = env.findNodeType("blinn");
+        phongType = env.findNodeType("phong");
+        fileType = env.findNodeType("file");
+        skinClusterType = env.findNodeType("skinCluster");
+        groupPartsType = env.findNodeType("groupParts");
+        shadingEngineType = env.findNodeType("shadingEngine");
+        blendShapeType = env.findNodeType("blendShape");
+    }
+
+    //=========================================================================
+    // Loader.processNode
+    //=========================================================================
+    void processNode(MNode n) {
+        Group parentNode = null;
+        for (MNode p : n.getParentNodes()) {
+            parentNode = (Group) resolveNode(p);
+        }
+        Node result = loaded.get(n);
+        // if the result is null, then it hasn't been added to the map yet
+        // so go ahead and process it
+        if (result == null) {
+            if (n.isInstanceOf(shadingEngineType)) {
+                //                System.out.println("==> Found a node of shadingEngineType: " + n);
+            } else if (n.isInstanceOf(lambertType)) {
+                //                System.out.println("==> Found a node of lambertType: " + n);
+            } else if (n.isInstanceOf(reflectType)) {
+                //                System.out.println("==> Found a node of reflectType: " + n);
+            } else if (n.isInstanceOf(blinnType)) {
+                //                System.out.println("==> Found a node of blinnType: " + n);
+            } else if (n.isInstanceOf(phongType)) {
+                //                System.out.println("==> Found a node of phongType: " + n);
+            } else if (n.isInstanceOf(fileType)) {
+                //                System.out.println("==> Found a node of fileType: " + n);
+            } else if (n.isInstanceOf(skinClusterType)) {
+                processClusterType(n);
+            } else if (n.isInstanceOf(meshType)) {
+                processMeshType(n, parentNode);
+            } else if (n.isInstanceOf(jointType)) {
+                processJointType(n, parentNode);
+            } else if (n.isInstanceOf(transformType)) {
+                processTransformType(n, parentNode);
+            } else if (n.isInstanceOf(animCurve)) {
+                processAnimCurve(n);
             }
         }
+    }
 
-        @Override
-        public int hashCode() {
-            int code = vertexIndex;
-            code *= 17;
-            code += normalIndex;
-            if (uvIndices != null) {
-                for (int uvIndice : uvIndices) {
-                    code *= 17;
-                    code += uvIndice;
-                }
-            }
-            return code;
+    MNode resolveInputMesh(MNode n) {
+        return resolveInputMesh(n, true);
+    }
+
+    MNode resolveInputMesh(MNode n, boolean followBlend) {
+        MNode groupParts;
+        if (!n.isInstanceOf(groupPartsType)) {
+            groupParts = n.getIncomingConnectionToType("ip[0].ig",
+                                                       "groupParts");
+        } else {
+            groupParts = n;
         }
-
-        @Override
-        public boolean equals(Object arg) {
-            if (arg == null || !(arg instanceof VertexHash)) {
-                return false;
-            }
-
-            VertexHash other = (VertexHash) arg;
-            if (vertexIndex != other.vertexIndex) {
-                return false;
-            }
-            if (normalIndex != other.normalIndex) {
-                return false;
-            }
-            if ((uvIndices != null) != (other.uvIndices != null)) {
-                return false;
-            }
-            if (uvIndices != null) {
-                if (uvIndices.length != other.uvIndices.length) {
-                    return false;
-                }
-                for (int i = 0; i < uvIndices.length; i++) {
-                    if (uvIndices[i] != other.uvIndices[i]) {
-                        return false;
-                    }
-                }
-            }
-            return true;
+        MNode origMesh = groupParts.getPathsConnectingTo("ig")
+                                   .get(0)
+                                   .getTargetNode();
+        if (origMesh == null) {
+            MNode tweak = groupParts.getIncomingConnectionToType("ig", "tweak");
+            groupParts = tweak.getIncomingConnectionToType("ip[0].ig",
+                                                           "groupParts");
+            origMesh = groupParts.getPathsConnectingTo("ig")
+                                 .get(0)
+                                 .getTargetNode();
         }
+        // println("N={n} ORIG_MESH={origMesh}");
+        if (origMesh == null) {
+            return null;
+        }
+        if (origMesh.isInstanceOf(meshType)) {
+            return origMesh;
+        }
+        if (origMesh.isInstanceOf(blendShapeType)) {
+            // return the blend shape's output
+            return resolveOutputMesh(origMesh);
+        }
+        return resolveInputMesh(origMesh);
+    }
+
+    //=========================================================================
+    // Loader.resolveNode
+    //-------------------------------------------------------------------------
+    // Loader.resolveNode looks up MNode in the HashMap Map<MNode, Node> loaded
+    // and returns the Node to which this map maps the MNode.
+    // Also, if the node that its looking up hasn't been processed yet,
+    // it processes the node.
+    //=========================================================================
+    Node resolveNode(MNode n) {
+        // System.out.println("--> resolveNode: " + n);
+        // if the node hasn't already been processed, then process the node
+        if (!loaded.containsKey(n)) {
+            // System.out.println("--> containsKey: " + n);
+            processNode(n);
+            // System.out.println("    loaded.get(n) " + loaded.get(n));
+        }
+        return loaded.get(n);
+    }
+
+    MNode resolveOrigInputMesh(MNode n) {
+
+        MNode groupParts;
+        if (!n.isInstanceOf(groupPartsType)) {
+            groupParts = n.getIncomingConnectionToType("ip[0].ig",
+                                                       "groupParts");
+        } else {
+            groupParts = n;
+        }
+        MNode origMesh = groupParts.getPathsConnectingTo("ig")
+                                   .get(0)
+                                   .getTargetNode();
+        if (origMesh == null) {
+            MNode tweak = groupParts.getIncomingConnectionToType("ig", "tweak");
+            groupParts = tweak.getIncomingConnectionToType("ip[0].ig",
+                                                           "groupParts");
+            origMesh = groupParts.getPathsConnectingTo("ig")
+                                 .get(0)
+                                 .getTargetNode();
+        }
+        if (origMesh == null) {
+            return null;
+        }
+        // println("N={n} ORIG_MESH={origMesh}");
+        if (origMesh.isInstanceOf(meshType)) {
+            return origMesh;
+        }
+        return resolveOrigInputMesh(origMesh);
+    }
+
+    MNode resolveOutputMesh(MNode n) {
+        MNode og;
+        List<MPath> ogc0 = n.getPathsConnectingFrom("og[0]");
+        if (ogc0.size() > 0) {
+            og = ogc0.get(0)
+                     .getTargetNode();
+        } else {
+            ogc0 = n.getPathsConnectingFrom("og");
+            if (ogc0.size() > 0) {
+                og = ogc0.get(0)
+                         .getTargetNode();
+            } else {
+                return null;
+            }
+        }
+        if (og.isInstanceOf(meshType)) {
+            return og;
+        }
+        // println("r.OG={og}");
+        while (og.isInstanceOf(groupPartsType)) {
+            og = og.getPathsConnectingFrom("og")
+                   .get(0)
+                   .getTargetNode();
+        }
+        if (og.isInstanceOf(meshType)) {
+            return og;
+        }
+        return resolveOutputMesh(og);
     }
 
     private Object buildMeshData(List<MPolyFace.FaceData> faces,
@@ -1760,122 +1817,73 @@ class Loader {
         }
     }
 
-    MNode resolveOutputMesh(MNode n) {
-        MNode og;
-        List<MPath> ogc0 = n.getPathsConnectingFrom("og[0]");
-        if (ogc0.size() > 0) {
-            og = ogc0.get(0)
-                     .getTargetNode();
-        } else {
-            ogc0 = n.getPathsConnectingFrom("og");
-            if (ogc0.size() > 0) {
-                og = ogc0.get(0)
-                         .getTargetNode();
-            } else {
-                return null;
+    private Object convertToFXMesh(MNode n) {
+        mVerts = (MFloat3Array) n.getAttr("vt");
+        MPolyFace mPolys = (MPolyFace) n.getAttr("fc");
+        mPointTweaks = (MFloat3Array) n.getAttr("pt");
+        MInt3Array mEdges = (MInt3Array) n.getAttr("ed");
+        edgeData = mEdges.get();
+        uvSet = ((MArray) n.getAttr("uvst")).get();
+        String currentUVSet = ((MString) n.getAttr("cuvs")).get();
+        for (int i = 0; i < uvSet.size(); i++) {
+            if (((MString) uvSet.get(i)
+                                .getData("uvsn")).get()
+                                                 .equals(currentUVSet)) {
+                uvChannel = i;
             }
         }
-        if (og.isInstanceOf(meshType)) {
-            return og;
+
+        if (mPolys.getFaces() == null) {
+            if (asPolygonMesh) {
+                return new PolygonMesh();
+            } else {
+                return new TriangleMesh();
+            }
         }
-        // println("r.OG={og}");
-        while (og.isInstanceOf(groupPartsType)) {
-            og = og.getPathsConnectingFrom("og")
-                   .get(0)
-                   .getTargetNode();
-        }
-        if (og.isInstanceOf(meshType)) {
-            return og;
-        }
-        return resolveOutputMesh(og);
+
+        MFloat3Array normals = (MFloat3Array) n.getAttr("n");
+        return buildMeshData(mPolys.getFaces(), normals);
     }
 
-    MNode resolveInputMesh(MNode n) {
-        return resolveInputMesh(n, true);
+    private int edgeStart(int edgeNumber) {
+        return edgeVert(edgeNumber, true);
     }
 
-    MNode resolveInputMesh(MNode n, boolean followBlend) {
-        MNode groupParts;
-        if (!n.isInstanceOf(groupPartsType)) {
-            groupParts = n.getIncomingConnectionToType("ip[0].ig",
-                                                       "groupParts");
+    private int edgeVert(int edgeNumber, boolean start) {
+        boolean reverse = (edgeNumber < 0);
+        if (reverse) {
+            edgeNumber = reverse(edgeNumber);
+            return edgeData[3 * edgeNumber + (start ? 1 : 0)];
         } else {
-            groupParts = n;
+            return edgeData[3 * edgeNumber + (start ? 0 : 1)];
         }
-        MNode origMesh = groupParts.getPathsConnectingTo("ig")
-                                   .get(0)
-                                   .getTargetNode();
-        if (origMesh == null) {
-            MNode tweak = groupParts.getIncomingConnectionToType("ig", "tweak");
-            groupParts = tweak.getIncomingConnectionToType("ip[0].ig",
-                                                           "groupParts");
-            origMesh = groupParts.getPathsConnectingTo("ig")
-                                 .get(0)
-                                 .getTargetNode();
-        }
-        // println("N={n} ORIG_MESH={origMesh}");
-        if (origMesh == null) {
-            return null;
-        }
-        if (origMesh.isInstanceOf(meshType)) {
-            return origMesh;
-        }
-        if (origMesh.isInstanceOf(blendShapeType)) {
-            // return the blend shape's output
-            return resolveOutputMesh(origMesh);
-        }
-        return resolveInputMesh(origMesh);
     }
 
-    MNode resolveOrigInputMesh(MNode n) {
+    private float[] getTexCoords(int uvChannel) {
+        if (uvSet == null || uvChannel < 0 || uvChannel >= uvSet.size()) {
+            return new float[] { 0, 0 };
+        }
+        MCompound compound = (MCompound) uvSet.get(uvChannel);
+        MFloat2Array uvs = (MFloat2Array) compound.getFieldData("uvsp");
+        if (uvs == null || uvs.get() == null) {
+            return new float[] { 0, 0 };
+        }
 
-        MNode groupParts;
-        if (!n.isInstanceOf(groupPartsType)) {
-            groupParts = n.getIncomingConnectionToType("ip[0].ig",
-                                                       "groupParts");
-        } else {
-            groupParts = n;
+        float[] texCoords = new float[uvs.getSize() * 2];
+        float[] uvsData = uvs.get();
+        for (int i = 0; i < uvs.getSize(); i++) {
+            //note the 1 - v
+            texCoords[i * 2] = uvsData[2 * i];
+            texCoords[i * 2 + 1] = 1 - uvsData[2 * i + 1];
         }
-        MNode origMesh = groupParts.getPathsConnectingTo("ig")
-                                   .get(0)
-                                   .getTargetNode();
-        if (origMesh == null) {
-            MNode tweak = groupParts.getIncomingConnectionToType("ig", "tweak");
-            groupParts = tweak.getIncomingConnectionToType("ip[0].ig",
-                                                           "groupParts");
-            origMesh = groupParts.getPathsConnectingTo("ig")
-                                 .get(0)
-                                 .getTargetNode();
-        }
-        if (origMesh == null) {
-            return null;
-        }
-        // println("N={n} ORIG_MESH={origMesh}");
-        if (origMesh.isInstanceOf(meshType)) {
-            return origMesh;
-        }
-        return resolveOrigInputMesh(origMesh);
+        return texCoords;
     }
 
-    Affine convertMatrix(MFloatArray mayaMatrix) {
-        if (mayaMatrix == null || mayaMatrix.getSize() < 16) {
-            return new Affine();
+    private int reverse(int edge) {
+        if (edge < 0) {
+            return -edge - 1;
         }
-
-        Affine result = new Affine();
-        result.setMxx(mayaMatrix.get(0 * 4 + 0));
-        result.setMxy(mayaMatrix.get(1 * 4 + 0));
-        result.setMxz(mayaMatrix.get(2 * 4 + 0));
-        result.setMyx(mayaMatrix.get(0 * 4 + 1));
-        result.setMyy(mayaMatrix.get(1 * 4 + 1));
-        result.setMyz(mayaMatrix.get(2 * 4 + 1));
-        result.setMzx(mayaMatrix.get(0 * 4 + 2));
-        result.setMzy(mayaMatrix.get(1 * 4 + 2));
-        result.setMzz(mayaMatrix.get(2 * 4 + 2));
-        result.setTx(mayaMatrix.get(3 * 4 + 0));
-        result.setTy(mayaMatrix.get(3 * 4 + 1));
-        result.setTz(mayaMatrix.get(3 * 4 + 2));
-        return result;
+        return edge;
     }
 
 }

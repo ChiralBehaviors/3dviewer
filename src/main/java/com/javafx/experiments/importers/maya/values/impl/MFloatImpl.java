@@ -46,11 +46,6 @@ public class MFloatImpl extends MDataImpl implements MFloat {
     }
 
     @Override
-    public void set(float value) {
-        this.value = value;
-    }
-
-    @Override
     public float get() {
         return value;
     }
@@ -60,6 +55,11 @@ public class MFloatImpl extends MDataImpl implements MFloat {
         String val = values.next()
                            .toLowerCase();
         value = Float.parseFloat(val);
+    }
+
+    @Override
+    public void set(float value) {
+        this.value = value;
     }
 
     @Override

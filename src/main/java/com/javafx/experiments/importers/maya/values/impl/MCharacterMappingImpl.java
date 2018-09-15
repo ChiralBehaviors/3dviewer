@@ -41,6 +41,18 @@ public class MCharacterMappingImpl extends MDataImpl
         implements MCharacterMapping {
 
     class EntryImpl implements Entry {
+        String key;
+
+        int    sourceIndex;
+
+        int    targetIndex;
+
+        public EntryImpl(String key, int sourceIndex, int targetIndex) {
+            this.key = key;
+            this.sourceIndex = sourceIndex;
+            this.targetIndex = targetIndex;
+        }
+
         @Override
         public String getKey() {
             return key;
@@ -54,16 +66,6 @@ public class MCharacterMappingImpl extends MDataImpl
         @Override
         public int getTargetIndex() {
             return targetIndex;
-        }
-
-        String key;
-        int    sourceIndex;
-        int    targetIndex;
-
-        public EntryImpl(String key, int sourceIndex, int targetIndex) {
-            this.key = key;
-            this.sourceIndex = sourceIndex;
-            this.targetIndex = targetIndex;
         }
     }
 

@@ -41,16 +41,41 @@ import java.util.Map;
 public abstract class MNodeType extends MObject {
     Map<String, MAttribute> attributes            = new HashMap<String, MAttribute>();
     Map<String, MAttribute> attributesByShortName = new HashMap<String, MAttribute>();
-    List<MNodeType>         superTypes            = new ArrayList<MNodeType>();
-
     Map<String, String>     canonicalNames        = new HashMap<String, String>();
 
-    public Collection<MAttribute> getAttributes() {
-        return attributes.values();
+    List<MNodeType>         superTypes            = new ArrayList<MNodeType>();
+
+    public MNodeType(MEnv env, String name) {
+        super(env, name);
+    }
+
+    @Override
+    public void accept(MEnv.Visitor visitor) {
+        visitor.visitNodeType(this);
+        for (MAttribute attr : attributes.values()) {
+            attr.accept(visitor);
+        }
     }
 
     public void addAlias(String alias, String target) {
         canonicalNames.put(alias, target);
+    }
+
+    public void addAttribute(MAttribute attribute) {
+        attribute.declaringNodeType = this;
+        attributes.put(attribute.getName(), attribute);
+        attributesByShortName.put(attribute.getShortName(), attribute);
+    }
+
+    public void addSuperType(MNodeType superType) {
+        superTypes.add(superType);
+    }
+
+    public MNode createNode(String name) {
+        MNode n = doCreateNode(name);
+        getEnv().addNode(n);
+        doInitNode(n);
+        return n;
     }
 
     public String getAlias(String name) {
@@ -70,6 +95,32 @@ public abstract class MNodeType extends MObject {
         return name;
     }
 
+    public MAttribute getAttribute(String name) {
+        MAttribute attr = attributes.get(name);
+        if (attr == null) {
+            attr = attributesByShortName.get(name);
+        }
+        if (attr == null) {
+            for (MNodeType t : superTypes) {
+                attr = t.getAttribute(name);
+                if (attr != null) {
+                    break;
+                }
+            }
+        }
+        if (attr == null) {
+            String canonicalName = getCanonicalName(name);
+            if (!canonicalName.equals(name)) {
+                attr = getAttribute(canonicalName);
+            }
+        }
+        return attr;
+    }
+
+    public Collection<MAttribute> getAttributes() {
+        return attributes.values();
+    }
+
     // By convention we map names down to the short name during the
     // canonicalization process. We assume that aliases are specified
     // to map to short names.
@@ -80,6 +131,36 @@ public abstract class MNodeType extends MObject {
             return result;
         }
         return tmpName;
+    }
+
+    public List<MNodeType> getSuperTypes() {
+        return superTypes;
+    }
+
+    public boolean isAssignableFrom(MNodeType other) {
+        if (other == this) {
+            return true;
+        }
+        for (MNodeType t : other.getSuperTypes()) {
+            if (isAssignableFrom(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected MNode doCreateNode(String name) {
+        return new MNode(getEnv(), this, name);
+    }
+
+    protected void initNode(MNode node) {
+    }
+
+    void doInitNode(MNode node) {
+        for (MNodeType i : superTypes) {
+            i.doInitNode(node);
+        }
+        initNode(node);
     }
 
     private String getCanonicalNameRecursive(String name) {
@@ -105,86 +186,5 @@ public abstract class MNodeType extends MObject {
             return attr.getShortName();
         }
         return name;
-    }
-
-    public boolean isAssignableFrom(MNodeType other) {
-        if (other == this) {
-            return true;
-        }
-        for (MNodeType t : other.getSuperTypes()) {
-            if (isAssignableFrom(t)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public void accept(MEnv.Visitor visitor) {
-        visitor.visitNodeType(this);
-        for (MAttribute attr : attributes.values()) {
-            attr.accept(visitor);
-        }
-    }
-
-    public MNodeType(MEnv env, String name) {
-        super(env, name);
-    }
-
-    public List<MNodeType> getSuperTypes() {
-        return superTypes;
-    }
-
-    public MAttribute getAttribute(String name) {
-        MAttribute attr = attributes.get(name);
-        if (attr == null) {
-            attr = attributesByShortName.get(name);
-        }
-        if (attr == null) {
-            for (MNodeType t : superTypes) {
-                attr = t.getAttribute(name);
-                if (attr != null) {
-                    break;
-                }
-            }
-        }
-        if (attr == null) {
-            String canonicalName = getCanonicalName(name);
-            if (!canonicalName.equals(name)) {
-                attr = getAttribute(canonicalName);
-            }
-        }
-        return attr;
-    }
-
-    public MNode createNode(String name) {
-        MNode n = doCreateNode(name);
-        getEnv().addNode(n);
-        doInitNode(n);
-        return n;
-    }
-
-    protected void initNode(MNode node) {
-    }
-
-    void doInitNode(MNode node) {
-        for (MNodeType i : superTypes) {
-            i.doInitNode(node);
-        }
-        initNode(node);
-    }
-
-    public void addAttribute(MAttribute attribute) {
-        attribute.declaringNodeType = this;
-        attributes.put(attribute.getName(), attribute);
-        attributesByShortName.put(attribute.getShortName(), attribute);
-    }
-
-    protected MNode doCreateNode(String name) {
-        return new MNode(getEnv(), this, name);
-    }
-
-    public void addSuperType(MNodeType superType) {
-        superTypes.add(superType);
     }
 }

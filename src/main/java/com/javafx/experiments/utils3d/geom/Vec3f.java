@@ -66,50 +66,17 @@ public class Vec3f {
         this.z = v.z;
     }
 
-    public void set(Vec3f v) {
-        this.x = v.x;
-        this.y = v.y;
-        this.z = v.z;
-    }
-
-    public void set(float x, float y, float z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-
-    public final void mul(float s) {
-        this.x *= s;
-        this.y *= s;
-        this.z *= s;
-    }
-
     /**
-     * Sets the value of this vector to the difference of vectors t1 and t2
-     * (this = t1 - t2).
-     *
-     * @param t1
-     *            the first vector
-     * @param t2
-     *            the second vector
-     */
-    public void sub(Vec3f t1, Vec3f t2) {
-        this.x = t1.x - t2.x;
-        this.y = t1.y - t2.y;
-        this.z = t1.z - t2.z;
-    }
-
-    /**
-     * Sets the value of this vector to the difference of itself and vector t1
-     * (this = this - t1) .
+     * Sets the value of this vector to the sum of itself and vector t1 (this =
+     * this + t1) .
      *
      * @param t1
      *            the other vector
      */
-    public void sub(Vec3f t1) {
-        this.x -= t1.x;
-        this.y -= t1.y;
-        this.z -= t1.z;
+    public void add(Vec3f t1) {
+        this.x += t1.x;
+        this.y += t1.y;
+        this.z += t1.z;
     }
 
     /**
@@ -125,39 +92,6 @@ public class Vec3f {
         this.x = t1.x + t2.x;
         this.y = t1.y + t2.y;
         this.z = t1.z + t2.z;
-    }
-
-    /**
-     * Sets the value of this vector to the sum of itself and vector t1 (this =
-     * this + t1) .
-     *
-     * @param t1
-     *            the other vector
-     */
-    public void add(Vec3f t1) {
-        this.x += t1.x;
-        this.y += t1.y;
-        this.z += t1.z;
-    }
-
-    /**
-     * Returns the length of this vector.
-     *
-     * @return the length of this vector
-     */
-    public float length() {
-        return (float) Math.sqrt(this.x * this.x + this.y * this.y
-                                 + this.z * this.z);
-    }
-
-    /**
-     * Normalize this vector.
-     */
-    public void normalize() {
-        float norm = 1.0f / length();
-        this.x = this.x * norm;
-        this.y = this.y * norm;
-        this.z = this.z * norm;
     }
 
     /**
@@ -191,20 +125,6 @@ public class Vec3f {
     }
 
     /**
-     * Returns the hashcode for this <code>Vec3f</code>.
-     *
-     * @return a hash code for this <code>Vec3f</code>.
-     */
-    @Override
-    public int hashCode() {
-        int bits = 7;
-        bits = 31 * bits + Float.floatToIntBits(x);
-        bits = 31 * bits + Float.floatToIntBits(y);
-        bits = 31 * bits + Float.floatToIntBits(z);
-        return bits;
-    }
-
-    /**
      * Determines whether or not two 3D points or vectors are equal. Two
      * instances of <code>Vec3f</code> are equal if the values of their
      * <code>x</code>, <code>y</code> and <code>z</code> member fields,
@@ -226,6 +146,86 @@ public class Vec3f {
             return (x == v.x) && (y == v.y) && (z == v.z);
         }
         return false;
+    }
+
+    /**
+     * Returns the hashcode for this <code>Vec3f</code>.
+     *
+     * @return a hash code for this <code>Vec3f</code>.
+     */
+    @Override
+    public int hashCode() {
+        int bits = 7;
+        bits = 31 * bits + Float.floatToIntBits(x);
+        bits = 31 * bits + Float.floatToIntBits(y);
+        bits = 31 * bits + Float.floatToIntBits(z);
+        return bits;
+    }
+
+    /**
+     * Returns the length of this vector.
+     *
+     * @return the length of this vector
+     */
+    public float length() {
+        return (float) Math.sqrt(this.x * this.x + this.y * this.y
+                                 + this.z * this.z);
+    }
+
+    public final void mul(float s) {
+        this.x *= s;
+        this.y *= s;
+        this.z *= s;
+    }
+
+    /**
+     * Normalize this vector.
+     */
+    public void normalize() {
+        float norm = 1.0f / length();
+        this.x = this.x * norm;
+        this.y = this.y * norm;
+        this.z = this.z * norm;
+    }
+
+    public void set(float x, float y, float z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    public void set(Vec3f v) {
+        this.x = v.x;
+        this.y = v.y;
+        this.z = v.z;
+    }
+
+    /**
+     * Sets the value of this vector to the difference of itself and vector t1
+     * (this = this - t1) .
+     *
+     * @param t1
+     *            the other vector
+     */
+    public void sub(Vec3f t1) {
+        this.x -= t1.x;
+        this.y -= t1.y;
+        this.z -= t1.z;
+    }
+
+    /**
+     * Sets the value of this vector to the difference of vectors t1 and t2
+     * (this = t1 - t2).
+     *
+     * @param t1
+     *            the first vector
+     * @param t2
+     *            the second vector
+     */
+    public void sub(Vec3f t1, Vec3f t2) {
+        this.x = t1.x - t2.x;
+        this.y = t1.y - t2.y;
+        this.z = t1.z - t2.z;
     }
 
     /**

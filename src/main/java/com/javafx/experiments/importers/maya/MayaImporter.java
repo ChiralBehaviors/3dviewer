@@ -56,18 +56,25 @@ public class MayaImporter extends Importer {
     public static final boolean DEBUG       = Loader.DEBUG;
     public static final boolean WARN        = Loader.WARN;
 
+    Set<Node>                   meshParents = new HashSet<Node>();
     // NO_JOINTS
     // [Note to Alex]: I've re-enabled joints, but lets not use rootCharacter [John]
     // javafx.scene.shape3d.Character rootCharacter = new javafx.scene.shape3d.Character();
     MayaGroup                   root        = new MayaGroup();
     Timeline                    timeline;
-    Set<Node>                   meshParents = new HashSet<Node>();
 
     // NO_JOINTS
     // [Note to Alex]: I've re-enabled joints, but lets not use rootCharacter [John]
     // public javafx.scene.shape3d.Character getRootCharacter() {
     //        return rootCharacter;
     // }
+
+    //=========================================================================
+    // MayaImporter.getMeshParents
+    //=========================================================================
+    public Set<Node> getMeshParents() {
+        return meshParents;
+    }
 
     @Override
     public MayaGroup getRoot() {
@@ -85,11 +92,9 @@ public class MayaImporter extends Importer {
         return timeline;
     }
 
-    //=========================================================================
-    // MayaImporter.getMeshParents
-    //=========================================================================
-    public Set<Node> getMeshParents() {
-        return meshParents;
+    @Override
+    public boolean isSupported(String extension) {
+        return extension != null && extension.equals("ma");
     }
 
     //=========================================================================
@@ -161,10 +166,5 @@ public class MayaImporter extends Importer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public boolean isSupported(String extension) {
-        return extension != null && extension.equals("ma");
     }
 }

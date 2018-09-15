@@ -35,23 +35,19 @@ import javafx.util.Duration;
 
 public class Frame extends Duration {
 
-    private static final long serialVersionUID = 1L;
-
-    static double FPS     = 24.0;
-
     // Experimentally trying to land the frames on whole frame values
     // Duration is still double, but internally, in Animation/Timeline,
     // the time is discrete.  6000 units per second.
     // Without this EPSILON, the frames might not land on whole frame values.
     // 0.000001f seems to work for now
     // 0.0000001f was too small on a trial run
-    static double EPSILON = 0.000001;
+    static double             EPSILON          = 0.000001;
+
+    static double             FPS              = 24.0;
+
+    private static final long serialVersionUID = 1L;
 
     // static double EPSILON = 0.0;
-
-    Frame(double millis) {
-        super(millis);
-    }
 
     public static Duration frame(int frame) {
         return Duration.seconds(frame / FPS + EPSILON);
@@ -65,11 +61,15 @@ public class Frame extends Duration {
         return Math.round(tion.toSeconds() * FPS);
     }
 
+    public static double toFrameAsDouble(Duration tion) {
+        return (tion.toSeconds() * FPS);
+    }
+
     public static int toFrameAsInt(Duration tion) {
         return (int) Math.round(tion.toSeconds() * FPS);
     }
 
-    public static double toFrameAsDouble(Duration tion) {
-        return (tion.toSeconds() * FPS);
+    Frame(double millis) {
+        super(millis);
     }
 }

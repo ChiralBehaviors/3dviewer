@@ -45,6 +45,16 @@ public class ObjOrPolyObjImporter extends Importer {
     final Group res = new Group();
 
     @Override
+    public Group getRoot() {
+        return res;
+    }
+
+    @Override
+    public boolean isSupported(String extension) {
+        return extension != null && extension.equals("obj");
+    }
+
+    @Override
     public void load(String fileUrl, boolean asPolygonMesh) throws IOException {
 
         if (asPolygonMesh) {
@@ -62,15 +72,5 @@ public class ObjOrPolyObjImporter extends Importer {
             }
             ;
         }
-    }
-
-    @Override
-    public Group getRoot() {
-        return res;
-    }
-
-    @Override
-    public boolean isSupported(String extension) {
-        return extension != null && extension.equals("obj");
     }
 }

@@ -43,17 +43,6 @@ import javafx.scene.shape.TriangleMesh;
  */
 public class Validator {
 
-    public void validate(Node node) {
-        if (node instanceof MeshView) {
-            MeshView meshView = (MeshView) node;
-            validate(meshView.getMesh());
-        } else if (node instanceof Parent) {
-            for (Node child : ((Parent) node).getChildrenUnmodifiable()) {
-                validate(child);
-            }
-        }
-    }
-
     public void validate(Mesh mesh) {
         if (!(mesh instanceof TriangleMesh)) {
             throw new AssertionError("Mesh is not TriangleMesh: "
@@ -114,6 +103,17 @@ public class Validator {
             }
         }
         //        System.out.println("Validation successfull of " + mesh);
+    }
+
+    public void validate(Node node) {
+        if (node instanceof MeshView) {
+            MeshView meshView = (MeshView) node;
+            validate(meshView.getMesh());
+        } else if (node instanceof Parent) {
+            for (Node child : ((Parent) node).getChildrenUnmodifiable()) {
+                validate(child);
+            }
+        }
     }
 
 }

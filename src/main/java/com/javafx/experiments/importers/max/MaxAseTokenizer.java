@@ -86,6 +86,18 @@ public class MaxAseTokenizer {
             }
         }
 
+        public static float parseFloat(byte data[], int l) {
+            return MaxAseTokenizer.parseFloat(data, l);
+        }
+
+        public static int parseInt(byte data[], int l) {
+            return MaxAseTokenizer.parseInt(data, l);
+        }
+
+        public static String parseString(byte data[], int l) {
+            return MaxAseTokenizer.parseString(data, l);
+        }
+
         static boolean equals(byte data[], int len, byte cData[]) {
             if (len != cData.length) {
                 return false;
@@ -98,33 +110,21 @@ public class MaxAseTokenizer {
             return true;
         }
 
-        public static int parseInt(byte data[], int l) {
-            return MaxAseTokenizer.parseInt(data, l);
-        }
-
-        public static float parseFloat(byte data[], int l) {
-            return MaxAseTokenizer.parseFloat(data, l);
-        }
-
-        public static String parseString(byte data[], int l) {
-            return MaxAseTokenizer.parseString(data, l);
-        }
-
-        void value(byte args[][], int len[], int argc) {
-            onValue(parseString(args[0], len[0]),
-                    new ParamList(args, len, argc));
-        }
-
         Callback object(byte args[][], int len[], int argc) {
             return onObject(parseString(args[0], len[0]),
                             new ParamList(args, len, argc));
         }
 
+        Callback onObject(String name, ParamList list) {
+            return this;
+        }
+
         void onValue(String name, ParamList list) {
         }
 
-        Callback onObject(String name, ParamList list) {
-            return this;
+        void value(byte args[][], int len[], int argc) {
+            onValue(parseString(args[0], len[0]),
+                    new ParamList(args, len, argc));
         }
     }
 
@@ -132,27 +132,26 @@ public class MaxAseTokenizer {
         static public final CallbackNOP instance = new CallbackNOP();
 
         @Override
-        void value(byte args[][], int len[], int argc) {
-        }
-
-        @Override
         Callback object(byte args[][], int len[], int argc) {
             return this;
         }
-    }
 
-    public static void parse(InputStream stream,
-                             Callback callback) throws IOException {
-        new ParserImpl(stream).parse(callback);
+        @Override
+        void value(byte args[][], int len[], int argc) {
+        }
     }
 
     static private class ParserImpl {
-        final InputStream stream;
         final byte        buffer1K[]  = new byte[1024];
-        private byte      line[][]    = new byte[32][];
-        private int       lineLen[]   = new int[32];
+        final byte        CLOSE       = 0x7D;
+        final byte        OPEN        = 0x7B;
+        final InputStream stream;
         private int       bufferBytes = 0, bufferPos = 0;
         private boolean   hasData     = true;
+
+        private byte      line[][]    = new byte[32][];
+
+        private int       lineLen[]   = new int[32];
 
         ParserImpl(InputStream inStream) {
             stream = inStream;
@@ -161,8 +160,21 @@ public class MaxAseTokenizer {
             }
         }
 
-        final byte CLOSE = 0x7D;
-        final byte OPEN  = 0x7B;
+        private byte[] growToken(int i) {
+            byte line2[] = new byte[line[i].length * 2];
+            System.arraycopy(line[i], 0, line2, 0, line[i].length);
+            return line[i] = line2;
+        }
+
+        private byte[][] growTokens() {
+            int lineLen2[] = new int[line.length * 2];
+            System.arraycopy(lineLen, 0, lineLen2, 0, line.length);
+            lineLen = lineLen2;
+
+            byte line2[][] = new byte[line.length * 2][];
+            System.arraycopy(line, 0, line2, 0, line.length);
+            return line = line2;
+        }
 
         private void parse(Callback callback) throws IOException {
             while (hasData) {
@@ -234,39 +246,11 @@ public class MaxAseTokenizer {
                 bufferPos = bufferBytes;
             }
         }
-
-        private byte[][] growTokens() {
-            int lineLen2[] = new int[line.length * 2];
-            System.arraycopy(lineLen, 0, lineLen2, 0, line.length);
-            lineLen = lineLen2;
-
-            byte line2[][] = new byte[line.length * 2][];
-            System.arraycopy(line, 0, line2, 0, line.length);
-            return line = line2;
-        }
-
-        private byte[] growToken(int i) {
-            byte line2[] = new byte[line[i].length * 2];
-            System.arraycopy(line[i], 0, line2, 0, line[i].length);
-            return line[i] = line2;
-        }
     }
 
-    public static int parseInt(byte data[], int l) {
-        int result = 0, sign = 1, i = 0;
-        if (l > 0 && data[0] == '-') {
-            sign = -1;
-            i = 1;
-        }
-        for (; i != l; ++i) {
-            byte ch = data[i];
-            if (ch >= 0x30 && ch <= 0x39) {
-                result = result * 10 + ch - 0x30;
-            } else {
-                break;
-            }
-        }
-        return result * sign;
+    public static void parse(InputStream stream,
+                             Callback callback) throws IOException {
+        new ParserImpl(stream).parse(callback);
     }
 
     public static float parseFloat(byte data[], int l) {
@@ -298,6 +282,23 @@ public class MaxAseTokenizer {
             }
         }
 
+        return result * sign;
+    }
+
+    public static int parseInt(byte data[], int l) {
+        int result = 0, sign = 1, i = 0;
+        if (l > 0 && data[0] == '-') {
+            sign = -1;
+            i = 1;
+        }
+        for (; i != l; ++i) {
+            byte ch = data[i];
+            if (ch >= 0x30 && ch <= 0x39) {
+                result = result * 10 + ch - 0x30;
+            } else {
+                break;
+            }
+        }
         return result * sign;
     }
 

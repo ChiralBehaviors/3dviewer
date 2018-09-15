@@ -66,50 +66,90 @@ import javafx.util.StringConverter;
  * Controller class for settings panel
  */
 public class SettingsController implements Initializable {
-    private final ContentModel            contentModel = Jfx3dViewerApp.getContentModel();
+    private class Power10DoubleBinding extends DoubleBinding {
 
-    public Accordion                      settings;
+        private DoubleProperty prop;
+
+        public Power10DoubleBinding(DoubleProperty prop) {
+            this.prop = prop;
+            bind(prop);
+        }
+
+        @Override
+        protected double computeValue() {
+            return Math.pow(10, prop.getValue());
+        }
+    }
+
+    private class TreeItemImpl extends TreeItem<Node> {
+
+        public TreeItemImpl(Node node) {
+            super(node);
+            if (node instanceof Parent) {
+                for (Node n : ((Parent) node).getChildrenUnmodifiable()) {
+                    getChildren().add(new TreeItemImpl(n));
+                }
+            }
+            node.setOnMouseClicked(t -> {
+                TreeItem<Node> parent = getParent();
+                while (parent != null) {
+                    parent.setExpanded(true);
+                    parent = parent.getParent();
+                }
+                hierarachyTreeTable.getSelectionModel()
+                                   .select(TreeItemImpl.this);
+                hierarachyTreeTable.scrollTo(hierarachyTreeTable.getSelectionModel()
+                                                                .getSelectedIndex());
+                t.consume();
+            });
+        }
+    }
+
     public ColorPicker                    ambientColorPicker;
-    public CheckBox                       showAxisCheckBox;
-    public CheckBox                       yUpCheckBox;
-    public Slider                         fovSlider;
-    public CheckBox                       msaaCheckBox;
-    public ColorPicker                    light1ColorPicker;
     public CheckBox                       ambientEnableCheckbox;
+    public ColorPicker                    backgroundColorPicker;
+    public TreeTableColumn<Node, Double>  depthColumn;
+    public Label                          farClipLabel;
+    public Slider                         farClipSlider;
+    public Slider                         fovSlider;
+    public TreeTableColumn<Node, Double>  heightColumn;
+    public TreeTableView<Node>            hierarachyTreeTable;
+    public TreeTableColumn<Node, String>  idColumn;
+    public ColorPicker                    light1ColorPicker;
     public CheckBox                       light1EnabledCheckBox;
     public CheckBox                       light1followCameraCheckBox;
-    public ColorPicker                    backgroundColorPicker;
     public Slider                         light1x;
     public Slider                         light1y;
     public Slider                         light1z;
-    public CheckBox                       light2EnabledCheckBox;
     public ColorPicker                    light2ColorPicker;
+    public CheckBox                       light2EnabledCheckBox;
     public Slider                         light2x;
     public Slider                         light2y;
     public Slider                         light2z;
-    public CheckBox                       light3EnabledCheckBox;
     public ColorPicker                    light3ColorPicker;
+    public CheckBox                       light3EnabledCheckBox;
     public Slider                         light3x;
     public Slider                         light3y;
     public Slider                         light3z;
-    public CheckBox                       wireFrameCheckbox;
-    public ToggleGroup                    subdivisionLevelGroup;
-    public ToggleGroup                    subdivisionBoundaryGroup;
-    public ToggleGroup                    subdivisionSmoothGroup;
-    public TreeTableView<Node>            hierarachyTreeTable;
+    public CheckBox                       msaaCheckBox;
+    public Label                          nearClipLabel;
+    public Slider                         nearClipSlider;
     public TreeTableColumn<Node, String>  nodeColumn;
-    public TreeTableColumn<Node, String>  idColumn;
+    public Label                          selectedNodeLabel;
+    public Accordion                      settings;
+    public CheckBox                       showAxisCheckBox;
+    public ToggleGroup                    subdivisionBoundaryGroup;
+    public ToggleGroup                    subdivisionLevelGroup;
+    public ToggleGroup                    subdivisionSmoothGroup;
+    public ListView<Transform>            transformsList;
     public TreeTableColumn<Node, Boolean> visibilityColumn;
     public TreeTableColumn<Node, Double>  widthColumn;
-    public TreeTableColumn<Node, Double>  heightColumn;
-    public TreeTableColumn<Node, Double>  depthColumn;
-    public ListView<Transform>            transformsList;
+    public CheckBox                       wireFrameCheckbox;
     public TitledPane                     x6;
-    public Label                          selectedNodeLabel;
-    public Slider                         nearClipSlider;
-    public Slider                         farClipSlider;
-    public Label                          nearClipLabel;
-    public Label                          farClipLabel;
+
+    public CheckBox                       yUpCheckBox;
+
+    private final ContentModel            contentModel = Jfx3dViewerApp.getContentModel();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -393,13 +433,13 @@ public class SettingsController implements Initializable {
         });
         StringConverter<Double> niceDoubleStringConverter = new StringConverter<Double>() {
             @Override
-            public String toString(Double t) {
-                return String.format("%.2f", t);
+            public Double fromString(String string) {
+                throw new UnsupportedOperationException("Not supported yet."); //Not needed so far
             }
 
             @Override
-            public Double fromString(String string) {
-                throw new UnsupportedOperationException("Not supported yet."); //Not needed so far
+            public String toString(Double t) {
+                return String.format("%.2f", t);
             }
         };
         widthColumn.setCellFactory(TextFieldTreeTableCell.<Node, Double> forTreeTableColumn(niceDoubleStringConverter));
@@ -472,44 +512,5 @@ public class SettingsController implements Initializable {
         sessionManager.bind(ambientEnableCheckbox.selectedProperty(),
                             "ambientEnable");
         sessionManager.bind(settings, "settingsPane");
-    }
-
-    private class TreeItemImpl extends TreeItem<Node> {
-
-        public TreeItemImpl(Node node) {
-            super(node);
-            if (node instanceof Parent) {
-                for (Node n : ((Parent) node).getChildrenUnmodifiable()) {
-                    getChildren().add(new TreeItemImpl(n));
-                }
-            }
-            node.setOnMouseClicked(t -> {
-                TreeItem<Node> parent = getParent();
-                while (parent != null) {
-                    parent.setExpanded(true);
-                    parent = parent.getParent();
-                }
-                hierarachyTreeTable.getSelectionModel()
-                                   .select(TreeItemImpl.this);
-                hierarachyTreeTable.scrollTo(hierarachyTreeTable.getSelectionModel()
-                                                                .getSelectedIndex());
-                t.consume();
-            });
-        }
-    }
-
-    private class Power10DoubleBinding extends DoubleBinding {
-
-        private DoubleProperty prop;
-
-        public Power10DoubleBinding(DoubleProperty prop) {
-            this.prop = prop;
-            bind(prop);
-        }
-
-        @Override
-        protected double computeValue() {
-            return Math.pow(10, prop.getValue());
-        }
     }
 }

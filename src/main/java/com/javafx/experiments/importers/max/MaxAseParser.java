@@ -49,50 +49,60 @@ import com.javafx.experiments.importers.max.MaxData.NodeTM;
 /** Max .ase file parser */
 public class MaxAseParser {
 
-    public MaxData data = new MaxData();
+    private class CameraNodeParser extends NodeParserBase {
+        CameraNode node;
 
-    private Node addNode(Node n, String name) {
-        n.name = name;
-        data.roots.put(name, n);
-        data.nodes.put(name, n);
-        return n;
-    }
-
-    private static void attachChild(Node parent, Node n) {
-        if (parent.children == null) {
-            parent.children = new ArrayList<>();
+        @Override
+        NodeTM addNodeTm() {
+            NodeTM ntm = new NodeTM();
+            if (node.nodeTM == null) {
+                return node.nodeTM = ntm;
+            }
+            if (node.target == null) {
+                return node.target = ntm;
+            }
+            return ntm;
         }
-        n.parent = parent;
-        parent.children.add(n);
-    }
 
-    private void attachNode(Node n, String parentName) {
-        Node parent = data.nodes.get(parentName);
-        if (parent != null) {
-            attachChild(parent, n);
-            data.roots.remove(n.name);
+        @Override
+        Node createNode() {
+            return node = new CameraNode();
         }
-    }
 
-    public MaxAseParser(InputStream stream) throws IOException {
-        process(stream);
-    }
-
-    public MaxAseParser(String file) throws IOException {
-        try (FileInputStream fileInputStream = new FileInputStream(file)) {
-            process(fileInputStream);
+        @Override
+        Node getNode() {
+            return node;
         }
-    }
 
-    private void process(InputStream stream) throws IOException {
-        MaxAseTokenizer.parse(stream, new FileParserCallback());
+        @Override
+        Callback onObject(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*CAMERA_SETTINGS":
+                    return this;
+                default:
+                    return super.onObject(name, list);
+            }
+        }
+
+        @Override
+        void onValue(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*CAMERA_NEAR":
+                    node.near = list.nextFloat();
+                    break;
+                case "*CAMERA_FAR":
+                    node.far = list.nextFloat();
+                    break;
+                case "*CAMERA_FOV":
+                    node.fov = list.nextFloat();
+                    break;
+                default:
+                    super.onValue(name, list);
+            }
+        }
     }
 
     private class FileParserCallback extends MaxAseTokenizer.Callback {
-        @Override
-        void onValue(String name, Callback.ParamList list) {
-        }
-
         @Override
         Callback onObject(String name, Callback.ParamList list) {
             switch (name) {
@@ -112,12 +122,107 @@ public class MaxAseParser {
             }
             return MaxAseTokenizer.CallbackNOP.instance;
         }
+
+        @Override
+        void onValue(String name, Callback.ParamList list) {
+        }
+    }
+
+    private class GeomNodeParser extends NodeParserBase {
+        GeomNode n;
+
+        @Override
+        Node createNode() {
+            return n = new GeomNode();
+        }
+
+        @Override
+        Node getNode() {
+            return n;
+        }
+
+        @Override
+        Callback onObject(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*MESH":
+                    return new MeshParser(n.mesh = new Mesh());
+                default:
+                    return super.onObject(name, list);
+            }
+        }
+
+        @Override
+        void onValue(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*MATERIAL_REF":
+                    n.materialRef = list.nextInt();
+                    break;
+                default:
+                    super.onValue(name, list);
+            }
+        }
+    }
+
+    private class LightNodeParser extends NodeParserBase {
+        LightNode n;
+
+        @Override
+        Node createNode() {
+            return n = new LightNode();
+        }
+
+        @Override
+        Node getNode() {
+            return n;
+        }
+
+        @Override
+        Callback onObject(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*LIGHT_SETTINGS":
+                    return this;
+                default:
+                    return super.onObject(name, list);
+            }
+        }
+
+        @Override
+        void onValue(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*LIGHT_INTENS":
+                    n.intensity = list.nextFloat();
+                    break;
+                case "*LIGHT_COLOR":
+                    n.r = list.nextFloat();
+                    n.g = list.nextFloat();
+                    n.b = list.nextFloat();
+                    break;
+                default:
+                    super.onValue(name, list);
+            }
+        }
+
     }
 
     private class MaterialListParser extends Callback {
-        final int MAP_ID_DIFFUSE = 0;
         Material  current;
         int       currentMapId;
+        final int MAP_ID_DIFFUSE = 0;
+
+        @Override
+        Callback onObject(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*MATERIAL":
+                    current = new Material();
+                    data.materials[list.nextInt()] = current;
+                    break;
+
+                case "*MAP_DIFFUSE":
+                    currentMapId = MAP_ID_DIFFUSE;
+                    break;
+            }
+            return this;
+        }
 
         @Override
         void onValue(String name, Callback.ParamList list) {
@@ -147,20 +252,206 @@ public class MaxAseParser {
 
             }
         }
+    }
+
+    private static class MeshParser extends Callback {
+        // *MESH_FACE 3045:    A: 2186 B: 2029 C: 1512 AB:    1 BC:    1 CA:    0  *MESH_SMOOTHING 1,25  *MESH_MTLID 1
+        private static class MeshFaceList extends Callback {
+            final int data[]; // a,b,c, smoothing
+
+            MeshFaceList(int data[]) {
+                this.data = data;
+            }
+
+            @Override
+            void value(byte args[][], int len[], int argc) {
+                int idx = parseInt(args[1], len[1]) * 4;
+                data[idx + 0] = parseInt(args[3], len[3]);
+                data[idx + 1] = parseInt(args[5], len[5]);
+                data[idx + 2] = parseInt(args[7], len[7]);
+                // String smGr = new String(args[15], 0, len[15]);
+                data[idx + 3] = parseSmGr(args[15], len[15]);
+            }
+        }
+
+        private static class MeshTFaceList extends Callback {
+            final int data[];
+
+            MeshTFaceList(int data[]) {
+                this.data = data;
+            }
+
+            @Override
+            void value(byte args[][], int len[], int argc) {
+                int idx = parseInt(args[1], len[1]) * 3;
+                data[idx + 0] = parseInt(args[2], len[2]);
+                data[idx + 1] = parseInt(args[3], len[3]);
+                data[idx + 2] = parseInt(args[4], len[4]);
+            }
+        }
+
+        private static class MeshTVertexList extends Callback {
+            final float data[];
+
+            MeshTVertexList(float data[]) {
+                this.data = data;
+            }
+
+            @Override
+            void value(byte args[][], int len[], int argc) {
+                int idx = parseInt(args[1], len[1]) * 2;
+                data[idx + 0] = parseFloat(args[2], len[2]);
+                data[idx + 1] = parseFloat(args[3], len[3]);
+            }
+        }
+
+        private static class MeshVertexList extends Callback {
+            final float data[];
+
+            MeshVertexList(float data[]) {
+                this.data = data;
+            }
+
+            @Override
+            void value(byte args[][], int len[], int argc) {
+                int idx = parseInt(args[1], len[1]) * 3;
+                data[idx + 0] = parseFloat(args[2], len[2]);
+                data[idx + 1] = parseFloat(args[3], len[3]);
+                data[idx + 2] = parseFloat(args[4], len[4]);
+            }
+        }
+
+        static private int parseSmGr(byte data[], int l) {
+            int result = 0, p = 0;
+            while (true) {
+                int bit = 0;
+                for (; p != l && data[p] >= 0x30 && data[p] <= 0x39; ++p) {
+                    bit = bit * 10 + data[p] - 0x30;
+                }
+                if (bit > 0) {
+                    result |= 1 << (bit - 1);
+                }
+                if (p == l || data[p] != ',') {
+                    break;
+                } else {
+                    p++;
+                }
+            }
+            return result;
+        }
+
+        MappingChannel mapping;
+
+        Mesh           mesh;
+
+        private MeshParser(Mesh mesh) {
+            this.mesh = mesh;
+        }
+
+        MappingChannel getMapping(int ch) {
+            if (mesh.mapping == null) {
+                mesh.mapping = new MappingChannel[ch + 1];
+            } else if (mesh.mapping.length <= ch) {
+                MappingChannel m[] = new MappingChannel[ch + 1];
+                System.arraycopy(mesh.mapping, 0, m, 0, mesh.mapping.length);
+                mesh.mapping = m;
+            }
+
+            if (mesh.mapping[ch] == null) {
+                mesh.mapping[ch] = new MappingChannel();
+            }
+            return mesh.mapping[ch];
+        }
 
         @Override
         Callback onObject(String name, Callback.ParamList list) {
             switch (name) {
-                case "*MATERIAL":
-                    current = new Material();
-                    data.materials[list.nextInt()] = current;
+                case "*MESH_VERTEX_LIST":
+                    return new MeshVertexList(mesh.points);
+                case "*MESH_FACE_LIST":
+                    return new MeshFaceList(mesh.faces);
+                case "*MESH_TVERTLIST":
+                    return new MeshTVertexList(mapping.tPoints);
+                case "*MESH_TFACELIST":
+                    return new MeshTFaceList(mapping.faces);
+                case "*MESH_MAPPINGCHANNEL": // ignore mapping channel
+                default:
+                    return MaxAseTokenizer.CallbackNOP.instance;
+            }
+        }
+
+        @Override
+        void onValue(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*MESH_NUMVERTEX":
+                    mesh.nPoints = list.nextInt();
+                    mesh.points = new float[mesh.nPoints * 3];
+                    break;
+                case "*MESH_NUMFACES":
+                    mesh.nFaces = list.nextInt();
+                    mesh.faces = new int[mesh.nFaces * 4];
                     break;
 
-                case "*MAP_DIFFUSE":
-                    currentMapId = MAP_ID_DIFFUSE;
+                case "*MESH_NUMTVERTEX":
+                    if (mapping == null) {
+                        mapping = getMapping(0);
+                    }
+                    mapping.ntPoints = list.nextInt();
+                    mapping.tPoints = new float[mapping.ntPoints * 2];
+                    break;
+
+                case "*MESH_NUMTVFACES":
+                    if (mapping == null) {
+                        mapping = getMapping(0);
+                    }
+                    mapping.faces = new int[list.nextInt() * 3];
                     break;
             }
-            return this;
+        }
+    }
+
+    private class NodeParser extends NodeParserBase {
+        Node n;
+
+        @Override
+        Node createNode() {
+            return n = new Node();
+        }
+
+        @Override
+        Node getNode() {
+            return n;
+        }
+    }
+
+    private abstract class NodeParserBase extends MaxAseTokenizer.Callback {
+        NodeTM addNodeTm() {
+            return getNode().nodeTM = new NodeTM();
+        }
+
+        abstract Node createNode();
+
+        abstract Node getNode();
+
+        @Override
+        Callback onObject(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*NODE_TM":
+                    return new NodeTMParser(addNodeTm());
+            }
+            return MaxAseTokenizer.CallbackNOP.instance;
+        }
+
+        @Override
+        void onValue(String name, Callback.ParamList list) {
+            switch (name) {
+                case "*NODE_NAME":
+                    addNode(createNode(), list.nextString());
+                    break;
+                case "*NODE_PARENT":
+                    attachNode(getNode(), list.nextString());
+                    break;
+            }
         }
     }
 
@@ -193,333 +484,43 @@ public class MaxAseParser {
         }
     }
 
-    private abstract class NodeParserBase extends MaxAseTokenizer.Callback {
-        @Override
-        void onValue(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*NODE_NAME":
-                    addNode(createNode(), list.nextString());
-                    break;
-                case "*NODE_PARENT":
-                    attachNode(getNode(), list.nextString());
-                    break;
-            }
+    private static void attachChild(Node parent, Node n) {
+        if (parent.children == null) {
+            parent.children = new ArrayList<>();
         }
+        n.parent = parent;
+        parent.children.add(n);
+    }
 
-        @Override
-        Callback onObject(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*NODE_TM":
-                    return new NodeTMParser(addNodeTm());
-            }
-            return MaxAseTokenizer.CallbackNOP.instance;
-        }
+    public MaxData data = new MaxData();
 
-        abstract Node createNode();
+    public MaxAseParser(InputStream stream) throws IOException {
+        process(stream);
+    }
 
-        abstract Node getNode();
-
-        NodeTM addNodeTm() {
-            return getNode().nodeTM = new NodeTM();
+    public MaxAseParser(String file) throws IOException {
+        try (FileInputStream fileInputStream = new FileInputStream(file)) {
+            process(fileInputStream);
         }
     }
 
-    private class LightNodeParser extends NodeParserBase {
-        LightNode n;
-
-        @Override
-        Node createNode() {
-            return n = new LightNode();
-        }
-
-        @Override
-        Node getNode() {
-            return n;
-        }
-
-        @Override
-        void onValue(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*LIGHT_INTENS":
-                    n.intensity = list.nextFloat();
-                    break;
-                case "*LIGHT_COLOR":
-                    n.r = list.nextFloat();
-                    n.g = list.nextFloat();
-                    n.b = list.nextFloat();
-                    break;
-                default:
-                    super.onValue(name, list);
-            }
-        }
-
-        @Override
-        Callback onObject(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*LIGHT_SETTINGS":
-                    return this;
-                default:
-                    return super.onObject(name, list);
-            }
-        }
-
+    private Node addNode(Node n, String name) {
+        n.name = name;
+        data.roots.put(name, n);
+        data.nodes.put(name, n);
+        return n;
     }
 
-    private class CameraNodeParser extends NodeParserBase {
-        CameraNode node;
-
-        @Override
-        Node createNode() {
-            return node = new CameraNode();
-        }
-
-        @Override
-        Node getNode() {
-            return node;
-        }
-
-        @Override
-        NodeTM addNodeTm() {
-            NodeTM ntm = new NodeTM();
-            if (node.nodeTM == null) {
-                return node.nodeTM = ntm;
-            }
-            if (node.target == null) {
-                return node.target = ntm;
-            }
-            return ntm;
-        }
-
-        @Override
-        void onValue(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*CAMERA_NEAR":
-                    node.near = list.nextFloat();
-                    break;
-                case "*CAMERA_FAR":
-                    node.far = list.nextFloat();
-                    break;
-                case "*CAMERA_FOV":
-                    node.fov = list.nextFloat();
-                    break;
-                default:
-                    super.onValue(name, list);
-            }
-        }
-
-        @Override
-        Callback onObject(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*CAMERA_SETTINGS":
-                    return this;
-                default:
-                    return super.onObject(name, list);
-            }
+    private void attachNode(Node n, String parentName) {
+        Node parent = data.nodes.get(parentName);
+        if (parent != null) {
+            attachChild(parent, n);
+            data.roots.remove(n.name);
         }
     }
 
-    private class NodeParser extends NodeParserBase {
-        Node n;
-
-        @Override
-        Node createNode() {
-            return n = new Node();
-        }
-
-        @Override
-        Node getNode() {
-            return n;
-        }
-    }
-
-    private static class MeshParser extends Callback {
-        Mesh           mesh;
-        MappingChannel mapping;
-
-        private MeshParser(Mesh mesh) {
-            this.mesh = mesh;
-        }
-
-        @Override
-        void onValue(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*MESH_NUMVERTEX":
-                    mesh.nPoints = list.nextInt();
-                    mesh.points = new float[mesh.nPoints * 3];
-                    break;
-                case "*MESH_NUMFACES":
-                    mesh.nFaces = list.nextInt();
-                    mesh.faces = new int[mesh.nFaces * 4];
-                    break;
-
-                case "*MESH_NUMTVERTEX":
-                    if (mapping == null) {
-                        mapping = getMapping(0);
-                    }
-                    mapping.ntPoints = list.nextInt();
-                    mapping.tPoints = new float[mapping.ntPoints * 2];
-                    break;
-
-                case "*MESH_NUMTVFACES":
-                    if (mapping == null) {
-                        mapping = getMapping(0);
-                    }
-                    mapping.faces = new int[list.nextInt() * 3];
-                    break;
-            }
-        }
-
-        @Override
-        Callback onObject(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*MESH_VERTEX_LIST":
-                    return new MeshVertexList(mesh.points);
-                case "*MESH_FACE_LIST":
-                    return new MeshFaceList(mesh.faces);
-                case "*MESH_TVERTLIST":
-                    return new MeshTVertexList(mapping.tPoints);
-                case "*MESH_TFACELIST":
-                    return new MeshTFaceList(mapping.faces);
-                case "*MESH_MAPPINGCHANNEL": // ignore mapping channel
-                default:
-                    return MaxAseTokenizer.CallbackNOP.instance;
-            }
-        }
-
-        MappingChannel getMapping(int ch) {
-            if (mesh.mapping == null) {
-                mesh.mapping = new MappingChannel[ch + 1];
-            } else if (mesh.mapping.length <= ch) {
-                MappingChannel m[] = new MappingChannel[ch + 1];
-                System.arraycopy(mesh.mapping, 0, m, 0, mesh.mapping.length);
-                mesh.mapping = m;
-            }
-
-            if (mesh.mapping[ch] == null) {
-                mesh.mapping[ch] = new MappingChannel();
-            }
-            return mesh.mapping[ch];
-        }
-
-        private static class MeshVertexList extends Callback {
-            final float data[];
-
-            MeshVertexList(float data[]) {
-                this.data = data;
-            }
-
-            @Override
-            void value(byte args[][], int len[], int argc) {
-                int idx = parseInt(args[1], len[1]) * 3;
-                data[idx + 0] = parseFloat(args[2], len[2]);
-                data[idx + 1] = parseFloat(args[3], len[3]);
-                data[idx + 2] = parseFloat(args[4], len[4]);
-            }
-        }
-
-        private static class MeshTVertexList extends Callback {
-            final float data[];
-
-            MeshTVertexList(float data[]) {
-                this.data = data;
-            }
-
-            @Override
-            void value(byte args[][], int len[], int argc) {
-                int idx = parseInt(args[1], len[1]) * 2;
-                data[idx + 0] = parseFloat(args[2], len[2]);
-                data[idx + 1] = parseFloat(args[3], len[3]);
-            }
-        }
-
-        private static class MeshTFaceList extends Callback {
-            final int data[];
-
-            MeshTFaceList(int data[]) {
-                this.data = data;
-            }
-
-            @Override
-            void value(byte args[][], int len[], int argc) {
-                int idx = parseInt(args[1], len[1]) * 3;
-                data[idx + 0] = parseInt(args[2], len[2]);
-                data[idx + 1] = parseInt(args[3], len[3]);
-                data[idx + 2] = parseInt(args[4], len[4]);
-            }
-        }
-
-        // *MESH_FACE 3045:    A: 2186 B: 2029 C: 1512 AB:    1 BC:    1 CA:    0  *MESH_SMOOTHING 1,25  *MESH_MTLID 1
-        private static class MeshFaceList extends Callback {
-            final int data[]; // a,b,c, smoothing
-
-            MeshFaceList(int data[]) {
-                this.data = data;
-            }
-
-            @Override
-            void value(byte args[][], int len[], int argc) {
-                int idx = parseInt(args[1], len[1]) * 4;
-                data[idx + 0] = parseInt(args[3], len[3]);
-                data[idx + 1] = parseInt(args[5], len[5]);
-                data[idx + 2] = parseInt(args[7], len[7]);
-                // String smGr = new String(args[15], 0, len[15]);
-                data[idx + 3] = parseSmGr(args[15], len[15]);
-            }
-        }
-
-        static private int parseSmGr(byte data[], int l) {
-            int result = 0, p = 0;
-            while (true) {
-                int bit = 0;
-                for (; p != l && data[p] >= 0x30 && data[p] <= 0x39; ++p) {
-                    bit = bit * 10 + data[p] - 0x30;
-                }
-                if (bit > 0) {
-                    result |= 1 << (bit - 1);
-                }
-                if (p == l || data[p] != ',') {
-                    break;
-                } else {
-                    p++;
-                }
-            }
-            return result;
-        }
-    }
-
-    private class GeomNodeParser extends NodeParserBase {
-        GeomNode n;
-
-        @Override
-        Node createNode() {
-            return n = new GeomNode();
-        }
-
-        @Override
-        Node getNode() {
-            return n;
-        }
-
-        @Override
-        void onValue(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*MATERIAL_REF":
-                    n.materialRef = list.nextInt();
-                    break;
-                default:
-                    super.onValue(name, list);
-            }
-        }
-
-        @Override
-        Callback onObject(String name, Callback.ParamList list) {
-            switch (name) {
-                case "*MESH":
-                    return new MeshParser(n.mesh = new Mesh());
-                default:
-                    return super.onObject(name, list);
-            }
-        }
+    private void process(InputStream stream) throws IOException {
+        MaxAseTokenizer.parse(stream, new FileParserCallback());
     }
 
 }

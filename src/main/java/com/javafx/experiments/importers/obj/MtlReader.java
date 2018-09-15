@@ -53,7 +53,12 @@ import javafx.scene.paint.PhongMaterial;
 /** Reader for OBJ file MTL material files. */
 public class MtlReader {
 
-    private String baseUrl;
+    private String                baseUrl;
+
+    private PhongMaterial         material  = new PhongMaterial();
+
+    private Map<String, Material> materials = new HashMap<>();
+    private boolean               modified  = false;
 
     public MtlReader(String filename, String parentUrl) {
         baseUrl = parentUrl.substring(0, parentUrl.lastIndexOf('/') + 1);
@@ -70,9 +75,26 @@ public class MtlReader {
         }
     }
 
-    private Map<String, Material> materials = new HashMap<>();
-    private PhongMaterial         material  = new PhongMaterial();
-    private boolean               modified  = false;
+    public Map<String, Material> getMaterials() {
+        return Collections.unmodifiableMap(materials);
+    }
+
+    private void addMaterial(String name) {
+        if (modified) {
+            if (!materials.containsKey(name)) {
+                materials.put(name, material);
+            } else {
+                log("This material is already added. Ignoring " + name);
+            }
+            material = new PhongMaterial(Color.WHITE);
+        }
+    }
+
+    private Image loadImage(String filename) {
+        filename = baseUrl + filename;
+        log("Loading image from " + filename);
+        return new Image(filename);
+    }
 
     private void read(InputStream inputStream) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
@@ -130,17 +152,6 @@ public class MtlReader {
         addMaterial(name);
     }
 
-    private void addMaterial(String name) {
-        if (modified) {
-            if (!materials.containsKey(name)) {
-                materials.put(name, material);
-            } else {
-                log("This material is already added. Ignoring " + name);
-            }
-            material = new PhongMaterial(Color.WHITE);
-        }
-    }
-
     private Color readColor(String line) {
         String[] split = line.trim()
                              .split(" +");
@@ -148,15 +159,5 @@ public class MtlReader {
         float green = Float.parseFloat(split[1]);
         float blue = Float.parseFloat(split[2]);
         return Color.color(red, green, blue);
-    }
-
-    private Image loadImage(String filename) {
-        filename = baseUrl + filename;
-        log("Loading image from " + filename);
-        return new Image(filename);
-    }
-
-    public Map<String, Material> getMaterials() {
-        return Collections.unmodifiableMap(materials);
     }
 }

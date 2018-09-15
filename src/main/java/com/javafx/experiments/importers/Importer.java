@@ -38,24 +38,20 @@ import javafx.scene.Group;
 
 public abstract class Importer {
     /**
-     * Loads the 3D file
-     *
-     * @param url
-     *            The url of the 3D file to load
-     * @param asPolygonMesh
-     *            When true load as a PolygonMesh if the loader supports.
-     * @throws IOException
-     *             If issue loading file
-     */
-    public abstract void load(String url,
-                              boolean asPolygonMesh) throws IOException;
-
-    /**
      * Gets the 3D node that was loaded earlier through the load() call
      * 
      * @return The loaded node
      */
     public abstract Group getRoot();
+
+    /**
+     * Can be overridden to return a timeline animation for the 3D file
+     * 
+     * @return A timeline animation. Null if there is no timeline animation.
+     */
+    public Timeline getTimeline() {
+        return null;
+    }
 
     /**
      * Tests if the given 3D file extension is supported (e.g. "ma", "ase",
@@ -68,11 +64,15 @@ public abstract class Importer {
     public abstract boolean isSupported(String supportType);
 
     /**
-     * Can be overridden to return a timeline animation for the 3D file
-     * 
-     * @return A timeline animation. Null if there is no timeline animation.
+     * Loads the 3D file
+     *
+     * @param url
+     *            The url of the 3D file to load
+     * @param asPolygonMesh
+     *            When true load as a PolygonMesh if the loader supports.
+     * @throws IOException
+     *             If issue loading file
      */
-    public Timeline getTimeline() {
-        return null;
-    }
+    public abstract void load(String url,
+                              boolean asPolygonMesh) throws IOException;
 }

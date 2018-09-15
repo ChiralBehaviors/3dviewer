@@ -57,33 +57,23 @@ import javafx.scene.shape.TriangleMesh;
 /** Obj file reader */
 public class ObjImporter {
 
-    private int vertexIndex(int vertexIndex) {
-        if (vertexIndex < 0) {
-            return vertexIndex + vertexes.size() / 3;
-        } else {
-            return vertexIndex - 1;
-        }
-    }
-
-    private int uvIndex(int uvIndex) {
-        if (uvIndex < 0) {
-            return uvIndex + uvs.size() / 2;
-        } else {
-            return uvIndex - 1;
-        }
-    }
-
-    private int normalIndex(int normalIndex) {
-        if (normalIndex < 0) {
-            return normalIndex + normals.size() / 3;
-        } else {
-            return normalIndex - 1;
-        }
-    }
-
     private static boolean debug  = false;
-    private static float   scale  = 1;
+
     private static boolean flatXZ = false;
+
+    private static float   scale  = 1;
+
+    public static void setDebug(boolean debug) {
+        ObjImporter.debug = debug;
+    }
+
+    public static void setFlatXZ(boolean flatXZ) {
+        ObjImporter.flatXZ = flatXZ;
+    }
+
+    public static void setScale(float scale) {
+        ObjImporter.scale = scale;
+    }
 
     static void log(String string) {
         if (debug) {
@@ -91,44 +81,40 @@ public class ObjImporter {
         }
     }
 
-    public Set<String> getMeshes() {
-        return meshes.keySet();
-    }
+    private IntegerArrayList            faceNormals          = new IntegerArrayList();
 
-    private Map<String, TriangleMesh>   meshes          = new HashMap<>();
-    private Map<String, Material>       materials       = new HashMap<>();
-    private List<Map<String, Material>> materialLibrary = new ArrayList<>();
+    private IntegerArrayList            faces                = new IntegerArrayList();
+    private int                         facesNormalStart     = 0;
+    private int                         facesStart           = 0;
+    private Material                    material             = new PhongMaterial(Color.WHITE);
+
+    private List<Map<String, Material>> materialLibrary      = new ArrayList<>();
+
+    private Map<String, Material>       materials            = new HashMap<>();
+
+    private Map<String, TriangleMesh>   meshes               = new HashMap<>();
+
+    private FloatArrayList              normals              = new FloatArrayList();
+
     private String                      objFileUrl;
+
+    private IntegerArrayList            smoothingGroups      = new IntegerArrayList();
+
+    private int                         smoothingGroupsStart = 0;
+
+    private FloatArrayList              uvs                  = new FloatArrayList();
+
+    private FloatArrayList              vertexes             = new FloatArrayList();
+
+    public ObjImporter(InputStream inputStream) throws IOException {
+        read(inputStream);
+    }
 
     public ObjImporter(String objFileUrl) throws FileNotFoundException,
                                           IOException {
         this.objFileUrl = objFileUrl;
         log("Reading filename = " + objFileUrl);
         read(new URL(objFileUrl).openStream());
-    }
-
-    public ObjImporter(InputStream inputStream) throws IOException {
-        read(inputStream);
-    }
-
-    public TriangleMesh getMesh() {
-        return meshes.values()
-                     .iterator()
-                     .next();
-    }
-
-    public Material getMaterial() {
-        return materials.values()
-                        .iterator()
-                        .next();
-    }
-
-    public TriangleMesh getMesh(String key) {
-        return meshes.get(key);
-    }
-
-    public Material getMaterial(String key) {
-        return materials.get(key);
     }
 
     public MeshView buildMeshView(String key) {
@@ -140,24 +126,155 @@ public class ObjImporter {
         return meshView;
     }
 
-    public static void setDebug(boolean debug) {
-        ObjImporter.debug = debug;
+    public Material getMaterial() {
+        return materials.values()
+                        .iterator()
+                        .next();
     }
 
-    public static void setScale(float scale) {
-        ObjImporter.scale = scale;
+    public Material getMaterial(String key) {
+        return materials.get(key);
     }
 
-    private FloatArrayList   vertexes             = new FloatArrayList();
-    private FloatArrayList   uvs                  = new FloatArrayList();
-    private IntegerArrayList faces                = new IntegerArrayList();
-    private IntegerArrayList smoothingGroups      = new IntegerArrayList();
-    private FloatArrayList   normals              = new FloatArrayList();
-    private IntegerArrayList faceNormals          = new IntegerArrayList();
-    private Material         material             = new PhongMaterial(Color.WHITE);
-    private int              facesStart           = 0;
-    private int              facesNormalStart     = 0;
-    private int              smoothingGroupsStart = 0;
+    public TriangleMesh getMesh() {
+        return meshes.values()
+                     .iterator()
+                     .next();
+    }
+
+    public TriangleMesh getMesh(String key) {
+        return meshes.get(key);
+    }
+
+    public Set<String> getMeshes() {
+        return meshes.keySet();
+    }
+
+    private void addMesh(String key) {
+        if (facesStart >= faces.size()) {
+            // we're only interested in faces
+            smoothingGroupsStart = smoothingGroups.size();
+            return;
+        }
+        Map<Integer, Integer> vertexMap = new HashMap<>(vertexes.size() / 2);
+        Map<Integer, Integer> uvMap = new HashMap<>(uvs.size() / 2);
+        Map<Integer, Integer> normalMap = new HashMap<>(normals.size() / 2);
+        FloatArrayList newVertexes = new FloatArrayList(vertexes.size() / 2);
+        FloatArrayList newUVs = new FloatArrayList(uvs.size() / 2);
+        FloatArrayList newNormals = new FloatArrayList(normals.size() / 2);
+        boolean useNormals = true;
+
+        for (int i = facesStart; i < faces.size(); i += 2) {
+            int vi = faces.get(i);
+            Integer nvi = vertexMap.get(vi);
+            if (nvi == null) {
+                nvi = newVertexes.size() / 3;
+                vertexMap.put(vi, nvi);
+                newVertexes.add(vertexes.get(vi * 3));
+                newVertexes.add(vertexes.get(vi * 3 + 1));
+                newVertexes.add(vertexes.get(vi * 3 + 2));
+            }
+            faces.set(i, nvi);
+
+            int uvi = faces.get(i + 1);
+            Integer nuvi = uvMap.get(uvi);
+            if (nuvi == null) {
+                nuvi = newUVs.size() / 2;
+                uvMap.put(uvi, nuvi);
+                if (uvi >= 0) {
+                    newUVs.add(uvs.get(uvi * 2));
+                    newUVs.add(uvs.get(uvi * 2 + 1));
+                } else {
+                    newUVs.add(0f);
+                    newUVs.add(0f);
+                }
+            }
+            faces.set(i + 1, nuvi);
+
+            if (useNormals) {
+                int ni = faceNormals.get(i / 2);
+                Integer nni = normalMap.get(ni);
+                if (nni == null) {
+                    nni = newNormals.size() / 3;
+                    normalMap.put(ni, nni);
+                    if (ni >= 0 && normals.size() >= (ni + 1) * 3) {
+                        newNormals.add(normals.get(ni * 3));
+                        newNormals.add(normals.get(ni * 3 + 1));
+                        newNormals.add(normals.get(ni * 3 + 2));
+                    } else {
+                        useNormals = false;
+                        newNormals.add(0f);
+                        newNormals.add(0f);
+                        newNormals.add(0f);
+                    }
+                }
+                faceNormals.set(i / 2, nni);
+            }
+        }
+
+        TriangleMesh mesh = new TriangleMesh();
+        mesh.getPoints()
+            .setAll(newVertexes.toFloatArray());
+        mesh.getTexCoords()
+            .setAll(newUVs.toFloatArray());
+        mesh.getFaces()
+            .setAll(((IntegerArrayList) faces.subList(facesStart,
+                                                      faces.size())).toIntArray());
+
+        // Use normals if they are provided
+        if (useNormals) {
+            int[] newFaces = ((IntegerArrayList) faces.subList(facesStart,
+                                                               faces.size())).toIntArray();
+            int[] newFaceNormals = ((IntegerArrayList) faceNormals.subList(facesNormalStart,
+                                                                           faceNormals.size())).toIntArray();
+            int[] smGroups = SmoothingGroups.calcSmoothGroups(mesh, newFaces,
+                                                              newFaceNormals,
+                                                              newNormals.toFloatArray());
+            mesh.getFaceSmoothingGroups()
+                .setAll(smGroups);
+        } else {
+            mesh.getFaceSmoothingGroups()
+                .setAll(((IntegerArrayList) smoothingGroups.subList(smoothingGroupsStart,
+                                                                    smoothingGroups.size())).toIntArray());
+        }
+
+        int keyIndex = 2;
+        String keyBase = key;
+        while (meshes.get(key) != null) {
+            key = keyBase + " (" + keyIndex++ + ")";
+        }
+        meshes.put(key, mesh);
+        materials.put(key, material);
+
+        log("Added mesh '" + key + "' of " + mesh.getPoints()
+                                                 .size()
+                                             / mesh.getPointElementSize()
+            + " vertexes, " + mesh.getTexCoords()
+                                  .size()
+                              / mesh.getTexCoordElementSize()
+            + " uvs, " + mesh.getFaces()
+                             .size()
+                         / mesh.getFaceElementSize()
+            + " faces, " + mesh.getFaceSmoothingGroups()
+                               .size()
+            + " smoothing groups.");
+        log("material diffuse color = "
+            + ((PhongMaterial) material).getDiffuseColor());
+        log("material diffuse map = "
+            + ((PhongMaterial) material).getDiffuseMap());
+
+        facesStart = faces.size();
+        facesNormalStart = faceNormals.size();
+        smoothingGroupsStart = smoothingGroups.size();
+    }
+
+    private int normalIndex(int normalIndex) {
+        if (normalIndex < 0) {
+            return normalIndex + normals.size() / 3;
+        } else {
+            return normalIndex - 1;
+        }
+    }
 
     private void read(InputStream inputStream) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
@@ -330,125 +447,19 @@ public class ObjImporter {
             + smoothingGroups.size() + " smoothing groups.");
     }
 
-    private void addMesh(String key) {
-        if (facesStart >= faces.size()) {
-            // we're only interested in faces
-            smoothingGroupsStart = smoothingGroups.size();
-            return;
-        }
-        Map<Integer, Integer> vertexMap = new HashMap<>(vertexes.size() / 2);
-        Map<Integer, Integer> uvMap = new HashMap<>(uvs.size() / 2);
-        Map<Integer, Integer> normalMap = new HashMap<>(normals.size() / 2);
-        FloatArrayList newVertexes = new FloatArrayList(vertexes.size() / 2);
-        FloatArrayList newUVs = new FloatArrayList(uvs.size() / 2);
-        FloatArrayList newNormals = new FloatArrayList(normals.size() / 2);
-        boolean useNormals = true;
-
-        for (int i = facesStart; i < faces.size(); i += 2) {
-            int vi = faces.get(i);
-            Integer nvi = vertexMap.get(vi);
-            if (nvi == null) {
-                nvi = newVertexes.size() / 3;
-                vertexMap.put(vi, nvi);
-                newVertexes.add(vertexes.get(vi * 3));
-                newVertexes.add(vertexes.get(vi * 3 + 1));
-                newVertexes.add(vertexes.get(vi * 3 + 2));
-            }
-            faces.set(i, nvi);
-
-            int uvi = faces.get(i + 1);
-            Integer nuvi = uvMap.get(uvi);
-            if (nuvi == null) {
-                nuvi = newUVs.size() / 2;
-                uvMap.put(uvi, nuvi);
-                if (uvi >= 0) {
-                    newUVs.add(uvs.get(uvi * 2));
-                    newUVs.add(uvs.get(uvi * 2 + 1));
-                } else {
-                    newUVs.add(0f);
-                    newUVs.add(0f);
-                }
-            }
-            faces.set(i + 1, nuvi);
-
-            if (useNormals) {
-                int ni = faceNormals.get(i / 2);
-                Integer nni = normalMap.get(ni);
-                if (nni == null) {
-                    nni = newNormals.size() / 3;
-                    normalMap.put(ni, nni);
-                    if (ni >= 0 && normals.size() >= (ni + 1) * 3) {
-                        newNormals.add(normals.get(ni * 3));
-                        newNormals.add(normals.get(ni * 3 + 1));
-                        newNormals.add(normals.get(ni * 3 + 2));
-                    } else {
-                        useNormals = false;
-                        newNormals.add(0f);
-                        newNormals.add(0f);
-                        newNormals.add(0f);
-                    }
-                }
-                faceNormals.set(i / 2, nni);
-            }
-        }
-
-        TriangleMesh mesh = new TriangleMesh();
-        mesh.getPoints()
-            .setAll(newVertexes.toFloatArray());
-        mesh.getTexCoords()
-            .setAll(newUVs.toFloatArray());
-        mesh.getFaces()
-            .setAll(((IntegerArrayList) faces.subList(facesStart,
-                                                      faces.size())).toIntArray());
-
-        // Use normals if they are provided
-        if (useNormals) {
-            int[] newFaces = ((IntegerArrayList) faces.subList(facesStart,
-                                                               faces.size())).toIntArray();
-            int[] newFaceNormals = ((IntegerArrayList) faceNormals.subList(facesNormalStart,
-                                                                           faceNormals.size())).toIntArray();
-            int[] smGroups = SmoothingGroups.calcSmoothGroups(mesh, newFaces,
-                                                              newFaceNormals,
-                                                              newNormals.toFloatArray());
-            mesh.getFaceSmoothingGroups()
-                .setAll(smGroups);
+    private int uvIndex(int uvIndex) {
+        if (uvIndex < 0) {
+            return uvIndex + uvs.size() / 2;
         } else {
-            mesh.getFaceSmoothingGroups()
-                .setAll(((IntegerArrayList) smoothingGroups.subList(smoothingGroupsStart,
-                                                                    smoothingGroups.size())).toIntArray());
+            return uvIndex - 1;
         }
-
-        int keyIndex = 2;
-        String keyBase = key;
-        while (meshes.get(key) != null) {
-            key = keyBase + " (" + keyIndex++ + ")";
-        }
-        meshes.put(key, mesh);
-        materials.put(key, material);
-
-        log("Added mesh '" + key + "' of " + mesh.getPoints()
-                                                 .size()
-                                             / mesh.getPointElementSize()
-            + " vertexes, " + mesh.getTexCoords()
-                                  .size()
-                              / mesh.getTexCoordElementSize()
-            + " uvs, " + mesh.getFaces()
-                             .size()
-                         / mesh.getFaceElementSize()
-            + " faces, " + mesh.getFaceSmoothingGroups()
-                               .size()
-            + " smoothing groups.");
-        log("material diffuse color = "
-            + ((PhongMaterial) material).getDiffuseColor());
-        log("material diffuse map = "
-            + ((PhongMaterial) material).getDiffuseMap());
-
-        facesStart = faces.size();
-        facesNormalStart = faceNormals.size();
-        smoothingGroupsStart = smoothingGroups.size();
     }
 
-    public static void setFlatXZ(boolean flatXZ) {
-        ObjImporter.flatXZ = flatXZ;
+    private int vertexIndex(int vertexIndex) {
+        if (vertexIndex < 0) {
+            return vertexIndex + vertexes.size() / 3;
+        } else {
+            return vertexIndex - 1;
+        }
     }
 }

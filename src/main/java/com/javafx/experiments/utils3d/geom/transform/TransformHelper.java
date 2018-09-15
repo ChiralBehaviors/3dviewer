@@ -37,9 +37,6 @@ import com.javafx.experiments.utils3d.geom.Vec3d;
 
 public class TransformHelper {
 
-    private TransformHelper() {
-    }
-
     public static BaseBounds general3dBoundsTransform(CanTransformVec3d tx,
                                                       BaseBounds src,
                                                       BaseBounds dst,
@@ -216,6 +213,9 @@ public class TransformHelper {
         return dst.deriveWithNewBounds((float) minX, (float) minY, (float) minZ,
                                        (float) maxX, (float) maxY,
                                        (float) maxZ);
+    }
+
+    private TransformHelper() {
     }
 
 }

@@ -48,11 +48,6 @@ public class MComponentListImpl extends MDataImpl implements MComponentList {
     }
 
     @Override
-    public void set(List<Component> value) {
-        components = value;
-    }
-
-    @Override
     public List<Component> get() {
         return components;
     }
@@ -67,6 +62,11 @@ public class MComponentListImpl extends MDataImpl implements MComponentList {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void set(List<Component> value) {
+        components = value;
     }
 
     @Override

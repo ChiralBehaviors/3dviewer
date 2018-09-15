@@ -43,19 +43,65 @@ import com.javafx.experiments.importers.maya.values.impl.MCompoundImpl;
 
 public class MCompoundType extends MDataType {
 
-    Map<String, Field> fields     = new HashMap<>();
+    public static class Field {
+        MData     defaultValue;
+        int       index;
+        String    name;
+        MDataType type;
+
+        public Field(String name, MDataType type, MData defaultValue,
+                     int index) {
+            this.name = name;
+            this.type = type;
+            this.defaultValue = defaultValue;
+            this.index = index;
+        }
+
+        public MData getDefault() {
+            //return defaultValue;
+            return type.createData();
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public MDataType getType() {
+            return type;
+        }
+    }
+
     List<Field>        fieldArray = new ArrayList<>();
+
+    Map<String, Field> fields     = new HashMap<>();
 
     public MCompoundType(MEnv env, String name) {
         super(env, name);
     }
 
-    public Map<String, Field> getFields() {
-        return fields;
+    public Field addField(String name, MDataType type, MData defaultValue) {
+        Field field;
+        fields.put(name, field = new Field(name, type, defaultValue,
+                                           fieldArray.size()));
+        fieldArray.add(field);
+        return field;
     }
 
-    public int getNumFields() {
-        return fieldArray.size();
+    @Override
+    public MData createData() {
+        return new MCompoundImpl(this);
+    }
+
+    public Field getField(int index) {
+        return fieldArray.get(index);
+    }
+
+    public Field getField(String name) {
+        return fields.get(name);
     }
 
     public int getFieldIndex(String name) {
@@ -67,56 +113,11 @@ public class MCompoundType extends MDataType {
         return getField(name).getIndex();
     }
 
-    public Field getField(String name) {
-        return fields.get(name);
+    public Map<String, Field> getFields() {
+        return fields;
     }
 
-    public Field getField(int index) {
-        return fieldArray.get(index);
-    }
-
-    public Field addField(String name, MDataType type, MData defaultValue) {
-        Field field;
-        fields.put(name, field = new Field(name, type, defaultValue,
-                                           fieldArray.size()));
-        fieldArray.add(field);
-        return field;
-    }
-
-    public static class Field {
-        String    name;
-        MDataType type;
-        MData     defaultValue;
-        int       index;
-
-        public Field(String name, MDataType type, MData defaultValue,
-                     int index) {
-            this.name = name;
-            this.type = type;
-            this.defaultValue = defaultValue;
-            this.index = index;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public MDataType getType() {
-            return type;
-        }
-
-        public MData getDefault() {
-            //return defaultValue;
-            return type.createData();
-        }
-
-        public int getIndex() {
-            return index;
-        }
-    }
-
-    @Override
-    public MData createData() {
-        return new MCompoundImpl(this);
+    public int getNumFields() {
+        return fieldArray.size();
     }
 }

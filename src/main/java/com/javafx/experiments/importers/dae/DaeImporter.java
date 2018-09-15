@@ -73,182 +73,62 @@ import javafx.scene.transform.Translate;
  * Notes:
  *
  * - Assume Y is up for now - Assume 1 Unit = 1 FX Unit
- */ 
+ */
 public class DaeImporter extends Importer {
-    private Group               rootNode               = new Group();
-    private Camera              firstCamera            = null;
-    private double              firstCameraAspectRatio = 4 / 3;
-    private Map<String, Camera> cameras                = new HashMap<>();
-    private Map<String, Object> meshes                 = new HashMap<>();
-    private boolean             createPolyMesh;
+    /** So far a node can be one of camera, geometry or group */
+    private static final class DaeNode {
+        private Group        group;
+        private final String id;
+        private Camera       instance_camera;
+        private Object       instance_geometry;
+        private final String name;
 
-    {
-        // CHANGE FOR Y_UP
-        rootNode.getTransforms()
-                .add(new Rotate(180, 0, 0, 0, Rotate.X_AXIS));
-    }
-
-    public DaeImporter() {
-    }
-
-    public DaeImporter(String url, boolean createPolyMesh) {
-        load(url, createPolyMesh);
-    }
-
-    public DaeImporter(File file, boolean createPolyMesh) {
-        this.createPolyMesh = createPolyMesh;
-        try {
-            SAXParserFactory factory = SAXParserFactory.newInstance();
-            SAXParser saxParser = factory.newSAXParser();
-            saxParser.parse(file, new DaeSaxParser());
-        } catch (ParserConfigurationException | SAXException | IOException e) {
-            e.printStackTrace();
+        private DaeNode(String id, String name) {
+            this.id = id;
+            this.name = name;
         }
-    }
 
-    public DaeImporter(InputStream in, boolean createPolyMesh) {
-        this.createPolyMesh = createPolyMesh;
-        try {
-            SAXParserFactory factory = SAXParserFactory.newInstance();
-            SAXParser saxParser = factory.newSAXParser();
-            saxParser.parse(in, new DaeSaxParser());
-        } catch (ParserConfigurationException | SAXException | IOException e) {
-            e.printStackTrace();
+        public Group getGroup() {
+            if (group == null) {
+                group = new Group();
+            }
+            return group;
         }
-    }
 
-    public Scene createScene(int width) {
-        Scene scene = new Scene(rootNode, width,
-                                (int) (width / firstCameraAspectRatio), true);
-        if (firstCamera != null) {
-            scene.setCamera(firstCamera);
+        public boolean isCamera() {
+            return instance_camera != null;
         }
-        scene.setFill(Color.BEIGE);
-        return scene;
-    }
 
-    public Camera getFirstCamera() {
-        return firstCamera;
-    }
-
-    @Override
-    public Group getRoot() {
-        return rootNode;
-    }
-
-    @Override
-    public void load(String url, boolean createPolygonMesh) {
-        this.createPolyMesh = createPolygonMesh;
-        long START = System.currentTimeMillis();
-        try {
-            SAXParserFactory factory = SAXParserFactory.newInstance();
-            SAXParser saxParser = factory.newSAXParser();
-            saxParser.parse(url, new DaeSaxParser());
-        } catch (ParserConfigurationException | SAXException | IOException e) {
-            e.printStackTrace();
+        public boolean isMesh() {
+            return instance_geometry != null;
         }
-        long END = System.currentTimeMillis();
-        System.out.println("IMPORTED [" + url + "] in  " + ((END - START))
-                           + "ms");
-    }
 
-    @Override
-    public boolean isSupported(String extension) {
-        return extension != null && extension.equals("dae");
-    }
-
-    private static enum State {
-        UNKNOWN,
-        camera,
-        visual_scene,
-        node,
-        aspect_ratio,
-        xfov,
-        yfov,
-        znear,
-        zfar,
-        instance_camera,
-        instance_geometry,
-        translate,
-        rotate,
-        scale,
-        matrix,
-        float_array,
-        polygons,
-        input,
-        p,
-        vertices,
-        authoring_tool,
-        polylist,
-        vcount
-    }
-
-    private static State state(String name) {
-        try {
-            return State.valueOf(name);
-        } catch (Exception e) {
-            return State.UNKNOWN;
+        @Override
+        public String toString() {
+            return "DaeNode{" + "id='" + id + '\'' + ", name='" + name + '\''
+                   + ", instance_camera=" + instance_camera
+                   + ", instance_geometry=" + instance_geometry + ", group="
+                   + group + '}';
         }
     }
 
     private class DaeSaxParser extends DefaultHandler {
-        private State                state       = State.UNKNOWN;
         private String               authoringTool;
-        private LinkedList<DaeNode>  nodes       = new LinkedList<>();
         private StringBuilder        charBuf;
         private Map<String, String>  currentId   = new HashMap<>();
+        private List<Transform>      currentTransforms;
         private Map<String, float[]> floatArrays = new HashMap<>();
         private Map<String, Input>   inputs      = new HashMap<>();
-        private int[]                vCounts;
+        private LinkedList<DaeNode>  nodes       = new LinkedList<>();
         private List<int[]>          pLists      = new ArrayList<>();
-        private List<Transform>      currentTransforms;
+        private State                state       = State.UNKNOWN;
+        private int[]                vCounts;
         private Double               xfov, yfov, znear, zfar, aspect_ratio;
 
         @Override
-        public void startElement(String uri, String localName, String qName,
-                                 Attributes attributes) throws SAXException {
-            state = state(qName);
-            currentId.put(qName, attributes.getValue("id"));
-            charBuf = new StringBuilder();
-            switch (state) {
-                case camera:
-                    aspect_ratio = xfov = yfov = znear = zfar = null;
-                    break;
-                case visual_scene:
-                    rootNode.setId(attributes.getValue("name"));
-                    DaeNode rootDaeNode = new DaeNode(attributes.getValue("id"),
-                                                      attributes.getValue("name"));
-                    rootDaeNode.group = rootNode;
-                    nodes.push(rootDaeNode);
-                    break;
-                case node:
-                    currentTransforms = new ArrayList<>();
-                    nodes.push(new DaeNode(attributes.getValue("id"),
-                                           attributes.getValue("name")));
-                    break;
-                case instance_camera:
-                    nodes.peek().instance_camera = cameras.get(attributes.getValue("url")
-                                                                         .substring(1));
-                    break;
-                case instance_geometry:
-                    nodes.peek().instance_geometry = meshes.get(attributes.getValue("url")
-                                                                          .substring(1));
-                    break;
-                case polygons:
-                case polylist:
-                    inputs.clear();
-                    pLists.clear();
-                    break;
-                case input:
-                    Input input = new Input(attributes.getValue("offset") != null ? Integer.parseInt(attributes.getValue("offset"))
-                                                                                  : 0,
-                                            attributes.getValue("semantic"),
-                                            attributes.getValue("source"));
-                    inputs.put(input.semantic, input);
-                    break;
-                default:
-                    break;
-            }
+        public void characters(char[] ch, int start,
+                               int length) throws SAXException {
+            charBuf.append(ch, start, length);
         }
 
         @Override
@@ -501,9 +381,50 @@ public class DaeImporter extends Importer {
         }
 
         @Override
-        public void characters(char[] ch, int start,
-                               int length) throws SAXException {
-            charBuf.append(ch, start, length);
+        public void startElement(String uri, String localName, String qName,
+                                 Attributes attributes) throws SAXException {
+            state = state(qName);
+            currentId.put(qName, attributes.getValue("id"));
+            charBuf = new StringBuilder();
+            switch (state) {
+                case camera:
+                    aspect_ratio = xfov = yfov = znear = zfar = null;
+                    break;
+                case visual_scene:
+                    rootNode.setId(attributes.getValue("name"));
+                    DaeNode rootDaeNode = new DaeNode(attributes.getValue("id"),
+                                                      attributes.getValue("name"));
+                    rootDaeNode.group = rootNode;
+                    nodes.push(rootDaeNode);
+                    break;
+                case node:
+                    currentTransforms = new ArrayList<>();
+                    nodes.push(new DaeNode(attributes.getValue("id"),
+                                           attributes.getValue("name")));
+                    break;
+                case instance_camera:
+                    nodes.peek().instance_camera = cameras.get(attributes.getValue("url")
+                                                                         .substring(1));
+                    break;
+                case instance_geometry:
+                    nodes.peek().instance_geometry = meshes.get(attributes.getValue("url")
+                                                                          .substring(1));
+                    break;
+                case polygons:
+                case polylist:
+                    inputs.clear();
+                    pLists.clear();
+                    break;
+                case input:
+                    Input input = new Input(attributes.getValue("offset") != null ? Integer.parseInt(attributes.getValue("offset"))
+                                                                                  : 0,
+                                            attributes.getValue("semantic"),
+                                            attributes.getValue("source"));
+                    inputs.put(input.semantic, input);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
@@ -525,41 +446,125 @@ public class DaeImporter extends Importer {
         }
     }
 
-    /** So far a node can be one of camera, geometry or group */
-    private static final class DaeNode {
-        private final String id;
-        private final String name;
-        private Camera       instance_camera;
-        private Object       instance_geometry;
-        private Group        group;
+    private static enum State {
+        aspect_ratio,
+        authoring_tool,
+        camera,
+        float_array,
+        input,
+        instance_camera,
+        instance_geometry,
+        matrix,
+        node,
+        p,
+        polygons,
+        polylist,
+        rotate,
+        scale,
+        translate,
+        UNKNOWN,
+        vcount,
+        vertices,
+        visual_scene,
+        xfov,
+        yfov,
+        zfar,
+        znear
+    }
 
-        private DaeNode(String id, String name) {
-            this.id = id;
-            this.name = name;
+    private static State state(String name) {
+        try {
+            return State.valueOf(name);
+        } catch (Exception e) {
+            return State.UNKNOWN;
         }
+    }
 
-        public boolean isCamera() {
-            return instance_camera != null;
-        }
+    private Map<String, Camera> cameras                = new HashMap<>();
 
-        public boolean isMesh() {
-            return instance_geometry != null;
-        }
+    private boolean             createPolyMesh;
 
-        public Group getGroup() {
-            if (group == null) {
-                group = new Group();
-            }
-            return group;
-        }
+    private Camera              firstCamera            = null;
 
-        @Override
-        public String toString() {
-            return "DaeNode{" + "id='" + id + '\'' + ", name='" + name + '\''
-                   + ", instance_camera=" + instance_camera
-                   + ", instance_geometry=" + instance_geometry + ", group="
-                   + group + '}';
+    private double              firstCameraAspectRatio = 4 / 3;
+
+    private Map<String, Object> meshes                 = new HashMap<>();
+
+    private Group               rootNode               = new Group();
+
+    {
+        // CHANGE FOR Y_UP
+        rootNode.getTransforms()
+                .add(new Rotate(180, 0, 0, 0, Rotate.X_AXIS));
+    }
+
+    public DaeImporter() {
+    }
+
+    public DaeImporter(File file, boolean createPolyMesh) {
+        this.createPolyMesh = createPolyMesh;
+        try {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            saxParser.parse(file, new DaeSaxParser());
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            e.printStackTrace();
         }
+    }
+
+    public DaeImporter(InputStream in, boolean createPolyMesh) {
+        this.createPolyMesh = createPolyMesh;
+        try {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            saxParser.parse(in, new DaeSaxParser());
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public DaeImporter(String url, boolean createPolyMesh) {
+        load(url, createPolyMesh);
+    }
+
+    public Scene createScene(int width) {
+        Scene scene = new Scene(rootNode, width,
+                                (int) (width / firstCameraAspectRatio), true);
+        if (firstCamera != null) {
+            scene.setCamera(firstCamera);
+        }
+        scene.setFill(Color.BEIGE);
+        return scene;
+    }
+
+    public Camera getFirstCamera() {
+        return firstCamera;
+    }
+
+    @Override
+    public Group getRoot() {
+        return rootNode;
+    }
+
+    @Override
+    public boolean isSupported(String extension) {
+        return extension != null && extension.equals("dae");
+    }
+
+    @Override
+    public void load(String url, boolean createPolygonMesh) {
+        this.createPolyMesh = createPolygonMesh;
+        long START = System.currentTimeMillis();
+        try {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            saxParser.parse(url, new DaeSaxParser());
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            e.printStackTrace();
+        }
+        long END = System.currentTimeMillis();
+        System.out.println("IMPORTED [" + url + "] in  " + ((END - START))
+                           + "ms");
     }
 
 }

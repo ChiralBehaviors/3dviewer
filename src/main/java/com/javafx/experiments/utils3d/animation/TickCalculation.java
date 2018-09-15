@@ -39,9 +39,6 @@ public class TickCalculation {
     private static final double TICKS_PER_MILI   = TICKS_PER_SECOND / 1000.0;
     private static final double TICKS_PER_NANO   = TICKS_PER_MILI * 1e-6;
 
-    private TickCalculation() {
-    }
-
     public static long add(long op1, long op2) {
         assert (op1 >= 0);
 
@@ -58,6 +55,23 @@ public class TickCalculation {
             return Math.max(0, op1 + op2);
         }
 
+    }
+
+    public static long fromDuration(Duration duration) {
+        return fromMillis(duration.toMillis());
+    }
+
+    public static long fromDuration(Duration duration, double rate) {
+        return Math.round(TICKS_PER_MILI * duration.toMillis()
+                          / Math.abs(rate));
+    }
+
+    public static long fromMillis(double millis) {
+        return Math.round(TICKS_PER_MILI * millis);
+    }
+
+    public static long fromNano(long nano) {
+        return Math.round(TICKS_PER_NANO * nano);
     }
 
     public static long sub(long op1, long op2) {
@@ -78,29 +92,15 @@ public class TickCalculation {
 
     }
 
-    public static long fromMillis(double millis) {
-        return Math.round(TICKS_PER_MILI * millis);
-    }
-
-    public static long fromNano(long nano) {
-        return Math.round(TICKS_PER_NANO * nano);
-    }
-
-    public static long fromDuration(Duration duration) {
-        return fromMillis(duration.toMillis());
-    }
-
-    public static long fromDuration(Duration duration, double rate) {
-        return Math.round(TICKS_PER_MILI * duration.toMillis()
-                          / Math.abs(rate));
-    }
-
     public static Duration toDuration(long ticks) {
         return Duration.millis(toMillis(ticks));
     }
 
     public static double toMillis(long ticks) {
         return ticks / TICKS_PER_MILI;
+    }
+
+    private TickCalculation() {
     }
 
 }

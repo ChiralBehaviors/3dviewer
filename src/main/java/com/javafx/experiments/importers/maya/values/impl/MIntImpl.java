@@ -46,11 +46,6 @@ public class MIntImpl extends MDataImpl implements MInt {
     }
 
     @Override
-    public void set(int value) {
-        this.value = value;
-    }
-
-    @Override
     public int get() {
         return value;
     }
@@ -60,6 +55,11 @@ public class MIntImpl extends MDataImpl implements MInt {
         String val = values.next()
                            .toLowerCase();
         value = Integer.parseInt(val);
+    }
+
+    @Override
+    public void set(int value) {
+        this.value = value;
     }
 
     @Override

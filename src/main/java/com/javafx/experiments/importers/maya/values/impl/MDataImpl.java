@@ -43,56 +43,8 @@ public abstract class MDataImpl implements MData {
 
     private MDataType dataType;
 
-    @Override
-    public MEnv getEnv() {
-        return getType().getEnv();
-    }
-
     public MDataImpl(MDataType type) {
         dataType = type;
-    }
-
-    @Override
-    public MDataType getType() {
-        return dataType;
-    }
-
-    @Override
-    public void setSize(int size) {
-        // nothing
-    }
-
-    @Override
-    public void parse(String field, List<String> values) {
-        MData value = doGet(field, 0);
-        if (value == null) {
-            //            System.out.println("field value is null: " +field + " in " + getType().getName());
-        }
-        value.parse(values);
-    }
-
-    @Override
-    public void parse(List<String> values) {
-        parse(values.iterator());
-    }
-
-    @Override
-    public abstract void parse(Iterator<String> iter);
-
-    // Get the data associated with the given string path
-    @Override
-    public MData getData(String path) {
-        //        System.out.println("get: "+ path);
-        return doGet(path, 0);
-    }
-
-    // Field access for those values which support it, such as compound values
-    @Override
-    public MData getFieldData(String name) {
-        if (name.length() == 0) {
-            return this;
-        }
-        return null;
     }
 
     // Index access for those values which suport it, such as array values
@@ -111,6 +63,54 @@ public abstract class MDataImpl implements MData {
             return this;
         }
         return null;
+    }
+
+    // Get the data associated with the given string path
+    @Override
+    public MData getData(String path) {
+        //        System.out.println("get: "+ path);
+        return doGet(path, 0);
+    }
+
+    @Override
+    public MEnv getEnv() {
+        return getType().getEnv();
+    }
+
+    // Field access for those values which support it, such as compound values
+    @Override
+    public MData getFieldData(String name) {
+        if (name.length() == 0) {
+            return this;
+        }
+        return null;
+    }
+
+    @Override
+    public MDataType getType() {
+        return dataType;
+    }
+
+    @Override
+    public abstract void parse(Iterator<String> iter);
+
+    @Override
+    public void parse(List<String> values) {
+        parse(values.iterator());
+    }
+
+    @Override
+    public void parse(String field, List<String> values) {
+        MData value = doGet(field, 0);
+        if (value == null) {
+            //            System.out.println("field value is null: " +field + " in " + getType().getName());
+        }
+        value.parse(values);
+    }
+
+    @Override
+    public void setSize(int size) {
+        // nothing
     }
 
     // Dereference from this MData down the path, starting parsing at the current point

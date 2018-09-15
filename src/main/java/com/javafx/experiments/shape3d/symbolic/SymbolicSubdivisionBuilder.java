@@ -49,16 +49,124 @@ import javafx.geometry.Point2D;
  */
 public class SymbolicSubdivisionBuilder {
 
-    private SymbolicPolygonMesh  oldMesh;
+    private static class Edge {
+        int from, to;
+
+        public Edge(int from, int to) {
+            this.from = Math.min(from, to);
+            this.to = Math.max(from, to);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Edge other = (Edge) obj;
+            if (this.from != other.from) {
+                return false;
+            }
+            if (this.to != other.to) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 41 * hash + this.from;
+            hash = 41 * hash + this.to;
+            return hash;
+        }
+    }
+
+    private static class EdgeInfo {
+        Edge           edge;
+        int            edgePoint;
+        List<FaceInfo> faces = new ArrayList<>(2);
+
+        /**
+         * an edge is in the boundary if it has only one adjacent face
+         */
+        public boolean isBoundary() {
+            return faces.size() == 1;
+        }
+    }
+
+    private static class FaceInfo {
+        Edge[]    edges;
+        Point2D[] edgeTexCoords;
+        int       facePoint;
+        int       newTexCoordIndex;
+        Point2D   texCoord;
+
+        public FaceInfo(int n) {
+            edges = new Edge[n];
+            edgeTexCoords = new Point2D[n];
+        }
+    }
+
+    private class PointInfo {
+        Set<Edge>      edges = new HashSet<>(4);
+        List<FaceInfo> faces = new ArrayList<>(4);
+
+        /**
+         * A point is internal if at least one of its adjacent edges is not in
+         * the boundary
+         */
+        public boolean hasInternalEdge() {
+            for (Edge edge : edges) {
+                EdgeInfo edgeInfo = edgeInfos.get(edge);
+                if (!edgeInfo.isBoundary()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * A point is in the boundary if any of its adjacent edges is in the
+         * boundary
+         */
+        public boolean isBoundary() {
+            for (Edge edge : edges) {
+                EdgeInfo edgeInfo = edgeInfos.get(edge);
+                if (edgeInfo.isBoundary()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public static SymbolicPolygonMesh subdivide(SymbolicPolygonMesh oldMesh,
+                                                BoundaryMode boundaryMode,
+                                                MapBorderMode mapBorderMode) {
+        SymbolicSubdivisionBuilder subdivision = new SymbolicSubdivisionBuilder(oldMesh,
+                                                                                boundaryMode,
+                                                                                mapBorderMode);
+        return subdivision.subdivide();
+    }
+
+    private BoundaryMode         boundaryMode;
     private Map<Edge, EdgeInfo>  edgeInfos;
     private FaceInfo[]           faceInfos;
-    private PointInfo[]          pointInfos;
-    private SubdividedPointArray points;
-    private float[]              texCoords;
-    private int[]                reindex;
-    private int                  newTexCoordIndex;
-    private BoundaryMode         boundaryMode;
     private MapBorderMode        mapBorderMode;
+    private int                  newTexCoordIndex;
+
+    private SymbolicPolygonMesh  oldMesh;
+
+    private PointInfo[]          pointInfos;
+
+    private SubdividedPointArray points;
+
+    private int[]                reindex;
+
+    private float[]              texCoords;
 
     public SymbolicSubdivisionBuilder(SymbolicPolygonMesh oldMesh,
                                       BoundaryMode boundaryMode,
@@ -128,15 +236,6 @@ public class SymbolicSubdivisionBuilder {
         return newMesh;
     }
 
-    public static SymbolicPolygonMesh subdivide(SymbolicPolygonMesh oldMesh,
-                                                BoundaryMode boundaryMode,
-                                                MapBorderMode mapBorderMode) {
-        SymbolicSubdivisionBuilder subdivision = new SymbolicSubdivisionBuilder(oldMesh,
-                                                                                boundaryMode,
-                                                                                mapBorderMode);
-        return subdivision.subdivide();
-    }
-
     private void addEdge(Edge edge, FaceInfo faceInfo) {
         EdgeInfo edgeInfo = edgeInfos.get(edge);
         if (edgeInfo == null) {
@@ -145,6 +244,15 @@ public class SymbolicSubdivisionBuilder {
             edgeInfos.put(edge, edgeInfo);
         }
         edgeInfo.faces.add(faceInfo);
+    }
+
+    private void addPoint(int point, Edge edge) {
+        PointInfo pointInfo = pointInfos[point];
+        if (pointInfo == null) {
+            pointInfo = new PointInfo();
+            pointInfos[point] = pointInfo;
+        }
+        pointInfo.edges.add(edge);
     }
 
     private void addPoint(int point, FaceInfo faceInfo, Edge edge) {
@@ -157,13 +265,62 @@ public class SymbolicSubdivisionBuilder {
         pointInfo.faces.add(faceInfo);
     }
 
-    private void addPoint(int point, Edge edge) {
-        PointInfo pointInfo = pointInfos[point];
-        if (pointInfo == null) {
-            pointInfo = new PointInfo();
-            pointInfos[point] = pointInfo;
+    private int calcControlPoint(int srcPointIndex) {
+        PointInfo pointInfo = pointInfos[srcPointIndex];
+        int origPoint = srcPointIndex;
+
+        int[] facePoints = new int[pointInfo.faces.size()];
+        for (int f = 0; f < facePoints.length; f++) {
+            facePoints[f] = pointInfo.faces.get(f).facePoint;
         }
-        pointInfo.edges.add(edge);
+        int[] edgePoints = new int[pointInfo.edges.size()];
+        boolean[] isEdgeBoundary = new boolean[pointInfo.edges.size()];
+        int[] fromEdgePoints = new int[pointInfo.edges.size()];
+        int[] toEdgePoints = new int[pointInfo.edges.size()];
+        int i = 0;
+        for (Edge edge : pointInfo.edges) {
+            EdgeInfo edgeInfo = edgeInfos.get(edge);
+            edgePoints[i] = edgeInfo.edgePoint;
+            isEdgeBoundary[i] = edgeInfo.isBoundary();
+            fromEdgePoints[i] = edgeInfo.edge.from;
+            toEdgePoints[i] = edgeInfo.edge.to;
+            i++;
+        }
+        int destPointIndex = points.addControlPoint(facePoints, edgePoints,
+                                                    fromEdgePoints,
+                                                    toEdgePoints,
+                                                    isEdgeBoundary, origPoint,
+                                                    pointInfo.isBoundary(),
+                                                    pointInfo.hasInternalEdge());
+        return destPointIndex;
+    }
+
+    private void calcControlTexCoord(FaceInfo faceInfo, int srcPointIndex,
+                                     int srcTexCoordIndex,
+                                     int destTexCoordIndex) {
+        PointInfo pointInfo = pointInfos[srcPointIndex];
+        boolean pointBelongsToCrease = oldMesh.points instanceof OriginalPointArray;
+        if ((mapBorderMode == MapBorderMode.SMOOTH_ALL
+             && (pointInfo.isBoundary() || pointBelongsToCrease))
+            || (mapBorderMode == MapBorderMode.SMOOTH_INTERNAL
+                && !pointInfo.hasInternalEdge())) {
+            double u = oldMesh.texCoords[srcTexCoordIndex * 2] / 2;
+            double v = oldMesh.texCoords[srcTexCoordIndex * 2 + 1] / 2;
+            for (int i = 0; i < faceInfo.edges.length; i++) {
+                if ((faceInfo.edges[i].to == srcPointIndex)
+                    || (faceInfo.edges[i].from == srcPointIndex)) {
+                    u += faceInfo.edgeTexCoords[i].getX() / 4;
+                    v += faceInfo.edgeTexCoords[i].getY() / 4;
+                }
+            }
+            texCoords[destTexCoordIndex * 2] = (float) u;
+            texCoords[destTexCoordIndex * 2 + 1] = (float) v;
+        } else {
+            texCoords[destTexCoordIndex
+                      * 2] = oldMesh.texCoords[srcTexCoordIndex * 2];
+            texCoords[destTexCoordIndex * 2
+                      + 1] = oldMesh.texCoords[srcTexCoordIndex * 2 + 1];
+        }
     }
 
     private void collectInfo() {
@@ -236,62 +393,14 @@ public class SymbolicSubdivisionBuilder {
         }
     }
 
-    private int calcControlPoint(int srcPointIndex) {
-        PointInfo pointInfo = pointInfos[srcPointIndex];
-        int origPoint = srcPointIndex;
-
-        int[] facePoints = new int[pointInfo.faces.size()];
-        for (int f = 0; f < facePoints.length; f++) {
-            facePoints[f] = pointInfo.faces.get(f).facePoint;
-        }
-        int[] edgePoints = new int[pointInfo.edges.size()];
-        boolean[] isEdgeBoundary = new boolean[pointInfo.edges.size()];
-        int[] fromEdgePoints = new int[pointInfo.edges.size()];
-        int[] toEdgePoints = new int[pointInfo.edges.size()];
-        int i = 0;
-        for (Edge edge : pointInfo.edges) {
-            EdgeInfo edgeInfo = edgeInfos.get(edge);
-            edgePoints[i] = edgeInfo.edgePoint;
-            isEdgeBoundary[i] = edgeInfo.isBoundary();
-            fromEdgePoints[i] = edgeInfo.edge.from;
-            toEdgePoints[i] = edgeInfo.edge.to;
-            i++;
-        }
-        int destPointIndex = points.addControlPoint(facePoints, edgePoints,
-                                                    fromEdgePoints,
-                                                    toEdgePoints,
-                                                    isEdgeBoundary, origPoint,
-                                                    pointInfo.isBoundary(),
-                                                    pointInfo.hasInternalEdge());
-        return destPointIndex;
+    private int getPointNewIndex(FaceInfo faceInfo) {
+        return faceInfo.facePoint;
     }
 
-    private void calcControlTexCoord(FaceInfo faceInfo, int srcPointIndex,
-                                     int srcTexCoordIndex,
-                                     int destTexCoordIndex) {
-        PointInfo pointInfo = pointInfos[srcPointIndex];
-        boolean pointBelongsToCrease = oldMesh.points instanceof OriginalPointArray;
-        if ((mapBorderMode == MapBorderMode.SMOOTH_ALL
-             && (pointInfo.isBoundary() || pointBelongsToCrease))
-            || (mapBorderMode == MapBorderMode.SMOOTH_INTERNAL
-                && !pointInfo.hasInternalEdge())) {
-            double u = oldMesh.texCoords[srcTexCoordIndex * 2] / 2;
-            double v = oldMesh.texCoords[srcTexCoordIndex * 2 + 1] / 2;
-            for (int i = 0; i < faceInfo.edges.length; i++) {
-                if ((faceInfo.edges[i].to == srcPointIndex)
-                    || (faceInfo.edges[i].from == srcPointIndex)) {
-                    u += faceInfo.edgeTexCoords[i].getX() / 4;
-                    v += faceInfo.edgeTexCoords[i].getY() / 4;
-                }
-            }
-            texCoords[destTexCoordIndex * 2] = (float) u;
-            texCoords[destTexCoordIndex * 2 + 1] = (float) v;
-        } else {
-            texCoords[destTexCoordIndex
-                      * 2] = oldMesh.texCoords[srcTexCoordIndex * 2];
-            texCoords[destTexCoordIndex * 2
-                      + 1] = oldMesh.texCoords[srcTexCoordIndex * 2 + 1];
-        }
+    private int getPointNewIndex(FaceInfo faceInfo, int edgeInd) {
+        Edge edge = faceInfo.edges[edgeInd];
+        EdgeInfo edgeInfo = edgeInfos.get(edge);
+        return edgeInfo.edgePoint;
     }
 
     private int getPointNewIndex(int srcPointIndex) {
@@ -301,35 +410,6 @@ public class SymbolicSubdivisionBuilder {
             reindex[srcPointIndex] = destPointIndex + 1;
         }
         return destPointIndex;
-    }
-
-    private int getPointNewIndex(FaceInfo faceInfo, int edgeInd) {
-        Edge edge = faceInfo.edges[edgeInd];
-        EdgeInfo edgeInfo = edgeInfos.get(edge);
-        return edgeInfo.edgePoint;
-    }
-
-    private int getPointNewIndex(FaceInfo faceInfo) {
-        return faceInfo.facePoint;
-    }
-
-    private int getTexCoordNewIndex(FaceInfo faceInfo, int srcPointIndex,
-                                    int srcTexCoordIndex) {
-        int destTexCoordIndex = newTexCoordIndex;
-        newTexCoordIndex++;
-        calcControlTexCoord(faceInfo, srcPointIndex, srcTexCoordIndex,
-                            destTexCoordIndex);
-        return destTexCoordIndex;
-    }
-
-    private int getTexCoordNewIndex(FaceInfo faceInfo, int edgeInd) {
-        int destTexCoordIndex = newTexCoordIndex;
-        newTexCoordIndex++;
-        texCoords[destTexCoordIndex
-                  * 2] = (float) faceInfo.edgeTexCoords[edgeInd].getX();
-        texCoords[destTexCoordIndex * 2
-                  + 1] = (float) faceInfo.edgeTexCoords[edgeInd].getY();
-        return destTexCoordIndex;
     }
 
     private int getTexCoordNewIndex(FaceInfo faceInfo) {
@@ -345,97 +425,22 @@ public class SymbolicSubdivisionBuilder {
         return destTexCoordIndex;
     }
 
-    private static class Edge {
-        int from, to;
-
-        public Edge(int from, int to) {
-            this.from = Math.min(from, to);
-            this.to = Math.max(from, to);
-        }
-
-        @Override
-        public int hashCode() {
-            int hash = 7;
-            hash = 41 * hash + this.from;
-            hash = 41 * hash + this.to;
-            return hash;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            final Edge other = (Edge) obj;
-            if (this.from != other.from) {
-                return false;
-            }
-            if (this.to != other.to) {
-                return false;
-            }
-            return true;
-        }
+    private int getTexCoordNewIndex(FaceInfo faceInfo, int edgeInd) {
+        int destTexCoordIndex = newTexCoordIndex;
+        newTexCoordIndex++;
+        texCoords[destTexCoordIndex
+                  * 2] = (float) faceInfo.edgeTexCoords[edgeInd].getX();
+        texCoords[destTexCoordIndex * 2
+                  + 1] = (float) faceInfo.edgeTexCoords[edgeInd].getY();
+        return destTexCoordIndex;
     }
 
-    private static class EdgeInfo {
-        Edge           edge;
-        int            edgePoint;
-        List<FaceInfo> faces = new ArrayList<>(2);
-
-        /**
-         * an edge is in the boundary if it has only one adjacent face
-         */
-        public boolean isBoundary() {
-            return faces.size() == 1;
-        }
-    }
-
-    private class PointInfo {
-        List<FaceInfo> faces = new ArrayList<>(4);
-        Set<Edge>      edges = new HashSet<>(4);
-
-        /**
-         * A point is in the boundary if any of its adjacent edges is in the
-         * boundary
-         */
-        public boolean isBoundary() {
-            for (Edge edge : edges) {
-                EdgeInfo edgeInfo = edgeInfos.get(edge);
-                if (edgeInfo.isBoundary()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * A point is internal if at least one of its adjacent edges is not in
-         * the boundary
-         */
-        public boolean hasInternalEdge() {
-            for (Edge edge : edges) {
-                EdgeInfo edgeInfo = edgeInfos.get(edge);
-                if (!edgeInfo.isBoundary()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
-    private static class FaceInfo {
-        int       facePoint;
-        Point2D   texCoord;
-        int       newTexCoordIndex;
-        Edge[]    edges;
-        Point2D[] edgeTexCoords;
-
-        public FaceInfo(int n) {
-            edges = new Edge[n];
-            edgeTexCoords = new Point2D[n];
-        }
+    private int getTexCoordNewIndex(FaceInfo faceInfo, int srcPointIndex,
+                                    int srcTexCoordIndex) {
+        int destTexCoordIndex = newTexCoordIndex;
+        newTexCoordIndex++;
+        calcControlTexCoord(faceInfo, srcPointIndex, srcTexCoordIndex,
+                            destTexCoordIndex);
+        return destTexCoordIndex;
     }
 }

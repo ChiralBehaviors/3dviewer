@@ -43,12 +43,22 @@ import javafx.scene.text.Text;
  * Visual display for timeline play head and length
  */
 public class TimelineDisplay extends Region {
+    private final Region                         background              = new Region();
+    private final Region                         bar                     = new Region();
+
+    private final Text                           current                 = new Text();
+
     private SimpleDoubleProperty                 currentTimeAsPercentage = new SimpleDoubleProperty(0) {
                                                                              @Override
                                                                              protected void invalidated() {
                                                                                  requestLayout();
                                                                              }
                                                                          };
+
+    private final Text                           end                     = new Text();
+
+    private final Region                         progress                = new Region();
+    private final Text                           start                   = new Text("0s");
     private final SimpleObjectProperty<Timeline> timeline                = new SimpleObjectProperty<Timeline>() {
                                                                              private Timeline old;
 
@@ -109,25 +119,6 @@ public class TimelineDisplay extends Region {
                                                                              }
                                                                          };
 
-    public Timeline getTimeline() {
-        return timeline.get();
-    }
-
-    public SimpleObjectProperty<Timeline> timelineProperty() {
-        return timeline;
-    }
-
-    public void setTimeline(Timeline timeline) {
-        this.timeline.set(timeline);
-    }
-
-    private final Region background = new Region();
-    private final Region bar        = new Region();
-    private final Region progress   = new Region();
-    private final Text   start      = new Text("0s");
-    private final Text   end        = new Text();
-    private final Text   current    = new Text();
-
     public TimelineDisplay() {
         getStyleClass().add("timeline-display");
         background.getStyleClass()
@@ -140,14 +131,26 @@ public class TimelineDisplay extends Region {
         getChildren().addAll(background, start, current, end, bar, progress);
     }
 
-    @Override
-    protected double computePrefWidth(double height) {
-        return 200;
+    public Timeline getTimeline() {
+        return timeline.get();
+    }
+
+    public void setTimeline(Timeline timeline) {
+        this.timeline.set(timeline);
+    }
+
+    public SimpleObjectProperty<Timeline> timelineProperty() {
+        return timeline;
     }
 
     @Override
     protected double computePrefHeight(double width) {
         return 24;
+    }
+
+    @Override
+    protected double computePrefWidth(double height) {
+        return 200;
     }
 
     @Override

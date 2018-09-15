@@ -52,64 +52,10 @@ public class DragSupport {
     private MouseEvent              lastMouseEvent;
     private Scene                   target;
 
-    /**
-     * Creates DragSupport instance that attaches EventHandlers to the given
-     * scene and responds to mouse and keyboard events in order to change given
-     * property values according to mouse drag events of given orientation
-     * 
-     * @param target
-     *            scene
-     * @param modifier
-     *            null if no modifier needed
-     * @param orientation
-     *            vertical or horizontal
-     * @param property
-     *            number property to control
-     * @see #DragSupport(javafx.scene.Scene, javafx.scene.input.KeyCode,
-     *      javafx.geometry.Orientation, javafx.beans.property.Property, double)
-     */
-    public DragSupport(Scene target, final KeyCode modifier,
-                       final Orientation orientation,
-                       final Property<Number> property) {
-        this(target, modifier, MouseButton.PRIMARY, orientation, property, 1);
-    }
-
     public DragSupport(Scene target, final KeyCode modifier,
                        MouseButton mouseButton, final Orientation orientation,
                        final Property<Number> property) {
         this(target, modifier, mouseButton, orientation, property, 1);
-    }
-
-    /**
-     * Removes event handlers of this DragSupport instance from the target scene
-     */
-    public void detach() {
-        target.removeEventHandler(MouseEvent.ANY, mouseEventHandler);
-        target.removeEventHandler(KeyEvent.ANY, keyboardEventHandler);
-    }
-
-    /**
-     * Creates DragSupport instance that attaches EventHandlers to the given
-     * scene and responds to mouse and keyboard events in order to change given
-     * property values according to mouse drag events of given orientation.
-     * Mouse movement amount is multiplied by given factor.
-     * 
-     * @param target
-     *            scene
-     * @param modifier
-     *            null if no modifier needed
-     * @param orientation
-     *            vertical or horizontal
-     * @param property
-     *            number property to control
-     * @param factor
-     *            multiplier for mouse movement amount
-     */
-    public DragSupport(Scene target, final KeyCode modifier,
-                       final Orientation orientation,
-                       final Property<Number> property, final double factor) {
-        this(target, modifier, MouseButton.PRIMARY, orientation, property,
-             factor);
     }
 
     public DragSupport(Scene target, final KeyCode modifier,
@@ -162,18 +108,58 @@ public class DragSupport {
         target.addEventHandler(KeyEvent.ANY, keyboardEventHandler);
     }
 
-    private boolean isModifierCorrect(KeyEvent t, KeyCode keyCode) {
-        return (keyCode != KeyCode.ALT ^ t.isAltDown())
-               && (keyCode != KeyCode.CONTROL ^ t.isControlDown())
-               && (keyCode != KeyCode.SHIFT ^ t.isShiftDown())
-               && (keyCode != KeyCode.META ^ t.isMetaDown());
+    /**
+     * Creates DragSupport instance that attaches EventHandlers to the given
+     * scene and responds to mouse and keyboard events in order to change given
+     * property values according to mouse drag events of given orientation
+     * 
+     * @param target
+     *            scene
+     * @param modifier
+     *            null if no modifier needed
+     * @param orientation
+     *            vertical or horizontal
+     * @param property
+     *            number property to control
+     * @see #DragSupport(javafx.scene.Scene, javafx.scene.input.KeyCode,
+     *      javafx.geometry.Orientation, javafx.beans.property.Property, double)
+     */
+    public DragSupport(Scene target, final KeyCode modifier,
+                       final Orientation orientation,
+                       final Property<Number> property) {
+        this(target, modifier, MouseButton.PRIMARY, orientation, property, 1);
     }
 
-    private boolean isModifierCorrect(MouseEvent t, KeyCode keyCode) {
-        return (keyCode != KeyCode.ALT ^ t.isAltDown())
-               && (keyCode != KeyCode.CONTROL ^ t.isControlDown())
-               && (keyCode != KeyCode.SHIFT ^ t.isShiftDown())
-               && (keyCode != KeyCode.META ^ t.isMetaDown());
+    /**
+     * Creates DragSupport instance that attaches EventHandlers to the given
+     * scene and responds to mouse and keyboard events in order to change given
+     * property values according to mouse drag events of given orientation.
+     * Mouse movement amount is multiplied by given factor.
+     * 
+     * @param target
+     *            scene
+     * @param modifier
+     *            null if no modifier needed
+     * @param orientation
+     *            vertical or horizontal
+     * @param property
+     *            number property to control
+     * @param factor
+     *            multiplier for mouse movement amount
+     */
+    public DragSupport(Scene target, final KeyCode modifier,
+                       final Orientation orientation,
+                       final Property<Number> property, final double factor) {
+        this(target, modifier, MouseButton.PRIMARY, orientation, property,
+             factor);
+    }
+
+    /**
+     * Removes event handlers of this DragSupport instance from the target scene
+     */
+    public void detach() {
+        target.removeEventHandler(MouseEvent.ANY, mouseEventHandler);
+        target.removeEventHandler(KeyEvent.ANY, keyboardEventHandler);
     }
 
     private double getCoord(MouseEvent t, Orientation orientation) {
@@ -186,6 +172,20 @@ public class DragSupport {
                 throw new IllegalArgumentException("This orientation is not supported: "
                                                    + orientation);
         }
+    }
+
+    private boolean isModifierCorrect(KeyEvent t, KeyCode keyCode) {
+        return (keyCode != KeyCode.ALT ^ t.isAltDown())
+               && (keyCode != KeyCode.CONTROL ^ t.isControlDown())
+               && (keyCode != KeyCode.SHIFT ^ t.isShiftDown())
+               && (keyCode != KeyCode.META ^ t.isMetaDown());
+    }
+
+    private boolean isModifierCorrect(MouseEvent t, KeyCode keyCode) {
+        return (keyCode != KeyCode.ALT ^ t.isAltDown())
+               && (keyCode != KeyCode.CONTROL ^ t.isControlDown())
+               && (keyCode != KeyCode.SHIFT ^ t.isShiftDown())
+               && (keyCode != KeyCode.META ^ t.isMetaDown());
     }
 
 }

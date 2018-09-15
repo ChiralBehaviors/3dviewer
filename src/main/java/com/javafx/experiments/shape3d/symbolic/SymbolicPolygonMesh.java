@@ -38,19 +38,11 @@ import com.javafx.experiments.shape3d.PolygonMesh;
  * depend on other variables and they can be updated appropriately.
  */
 public class SymbolicPolygonMesh {
-    public SymbolicPointArray points;
-    public float[]            texCoords;
     public int[][]            faces;
     public int[]              faceSmoothingGroups;
+    public SymbolicPointArray points;
+    public float[]            texCoords;
     private int               numEdgesInFaces = -1;
-
-    public SymbolicPolygonMesh(SymbolicPointArray points, float[] texCoords,
-                               int[][] faces, int[] faceSmoothingGroups) {
-        this.points = points;
-        this.texCoords = texCoords;
-        this.faces = faces;
-        this.faceSmoothingGroups = faceSmoothingGroups;
-    }
 
     public SymbolicPolygonMesh(PolygonMesh mesh) {
         this.points = new OriginalPointArray(mesh);
@@ -59,6 +51,14 @@ public class SymbolicPolygonMesh {
         this.faces = mesh.faces;
         this.faceSmoothingGroups = mesh.getFaceSmoothingGroups()
                                        .toArray(null);
+    }
+
+    public SymbolicPolygonMesh(SymbolicPointArray points, float[] texCoords,
+                               int[][] faces, int[] faceSmoothingGroups) {
+        this.points = points;
+        this.texCoords = texCoords;
+        this.faces = faces;
+        this.faceSmoothingGroups = faceSmoothingGroups;
     }
 
     public int getNumEdgesInFaces() {

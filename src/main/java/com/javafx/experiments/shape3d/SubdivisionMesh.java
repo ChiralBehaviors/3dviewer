@@ -41,29 +41,19 @@ import com.javafx.experiments.shape3d.symbolic.SymbolicSubdivisionBuilder;
  * Catmull Clark subdivision surface polygon mesh
  */
 public class SubdivisionMesh extends PolygonMesh {
-    private final PolygonMesh               originalMesh;
-    private int                             subdivisionLevel;
-    private BoundaryMode                    boundaryMode;
-    private MapBorderMode                   mapBorderMode;
-    private final List<SymbolicPolygonMesh> symbolicMeshes;
-
-    private boolean                         pointValuesDirty;
-    private boolean                         meshDirty;
-    private boolean                         subdivisionLevelDirty;
-
     /**
      * Describes whether the edges and points at the boundary are treated as
      * creases
      */
     public enum BoundaryMode {
         /**
-         * Only edges at the boundary are treated as creases
-         */
-        CREASE_EDGES,
-        /**
          * Edges and points at the boundary are treated as creases
          */
-        CREASE_ALL
+        CREASE_ALL,
+        /**
+         * Only edges at the boundary are treated as creases
+         */
+        CREASE_EDGES
     }
 
     /**
@@ -75,15 +65,27 @@ public class SubdivisionMesh extends PolygonMesh {
          */
         NOT_SMOOTH,
         /**
-         * Smooths uvs of points at corners
-         */
-        SMOOTH_INTERNAL,
-        /**
          * Smooths uvs of points at boundaries and original control points (and
          * creases [in the future when creases are defined])
          */
-        SMOOTH_ALL
+        SMOOTH_ALL,
+        /**
+         * Smooths uvs of points at corners
+         */
+        SMOOTH_INTERNAL
     }
+
+    private BoundaryMode                    boundaryMode;
+    private MapBorderMode                   mapBorderMode;
+    private boolean                         meshDirty;
+
+    private final PolygonMesh               originalMesh;
+    private boolean                         pointValuesDirty;
+    private int                             subdivisionLevel;
+
+    private boolean                         subdivisionLevelDirty;
+
+    private final List<SymbolicPolygonMesh> symbolicMeshes;
 
     public SubdivisionMesh(PolygonMesh originalMesh, int subdivisionLevel,
                            BoundaryMode boundaryMode,
@@ -106,6 +108,40 @@ public class SubdivisionMesh extends PolygonMesh {
         originalMesh.getTexCoords()
                     .addListener((observableArray, sizeChanged, from,
                                   to) -> meshDirty = true);
+    }
+
+    public SubdivisionMesh.BoundaryMode getBoundaryMode() {
+        return boundaryMode;
+    }
+
+    public SubdivisionMesh.MapBorderMode getMapBorderMode() {
+        return mapBorderMode;
+    }
+
+    public PolygonMesh getOriginalMesh() {
+        return originalMesh;
+    }
+
+    public int getSubdivisionLevel() {
+        return subdivisionLevel;
+    }
+
+    public void setBoundaryMode(SubdivisionMesh.BoundaryMode boundaryMode) {
+        if (boundaryMode != this.boundaryMode) {
+            setBoundaryModeForced(boundaryMode);
+        }
+    }
+
+    public void setMapBorderMode(SubdivisionMesh.MapBorderMode mapBorderMode) {
+        if (mapBorderMode != this.mapBorderMode) {
+            setMapBorderModeForced(mapBorderMode);
+        }
+    }
+
+    public void setSubdivisionLevel(int subdivisionLevel) {
+        if (subdivisionLevel != this.subdivisionLevel) {
+            setSubdivisionLevelForced(subdivisionLevel);
+        }
     }
 
     /**
@@ -152,11 +188,6 @@ public class SubdivisionMesh extends PolygonMesh {
         subdivisionLevelDirty = false;
     }
 
-    private void setSubdivisionLevelForced(int subdivisionLevel) {
-        this.subdivisionLevel = subdivisionLevel;
-        subdivisionLevelDirty = true;
-    }
-
     private void setBoundaryModeForced(SubdivisionMesh.BoundaryMode boundaryMode) {
         this.boundaryMode = boundaryMode;
         meshDirty = true;
@@ -167,37 +198,8 @@ public class SubdivisionMesh extends PolygonMesh {
         meshDirty = true;
     }
 
-    public PolygonMesh getOriginalMesh() {
-        return originalMesh;
-    }
-
-    public int getSubdivisionLevel() {
-        return subdivisionLevel;
-    }
-
-    public void setSubdivisionLevel(int subdivisionLevel) {
-        if (subdivisionLevel != this.subdivisionLevel) {
-            setSubdivisionLevelForced(subdivisionLevel);
-        }
-    }
-
-    public SubdivisionMesh.BoundaryMode getBoundaryMode() {
-        return boundaryMode;
-    }
-
-    public void setBoundaryMode(SubdivisionMesh.BoundaryMode boundaryMode) {
-        if (boundaryMode != this.boundaryMode) {
-            setBoundaryModeForced(boundaryMode);
-        }
-    }
-
-    public SubdivisionMesh.MapBorderMode getMapBorderMode() {
-        return mapBorderMode;
-    }
-
-    public void setMapBorderMode(SubdivisionMesh.MapBorderMode mapBorderMode) {
-        if (mapBorderMode != this.mapBorderMode) {
-            setMapBorderModeForced(mapBorderMode);
-        }
+    private void setSubdivisionLevelForced(int subdivisionLevel) {
+        this.subdivisionLevel = subdivisionLevel;
+        subdivisionLevelDirty = true;
     }
 }

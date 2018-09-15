@@ -39,6 +39,45 @@ package com.javafx.experiments.utils3d.geom;
  */
 public class Point2D {
     /**
+     * Returns the distance between two points.
+     *
+     * @param x1
+     *            the X coordinate of the first specified point
+     * @param y1
+     *            the Y coordinate of the first specified point
+     * @param x2
+     *            the X coordinate of the second specified point
+     * @param y2
+     *            the Y coordinate of the second specified point
+     * @return the distance between the two sets of specified coordinates.
+     */
+    public static float distance(float x1, float y1, float x2, float y2) {
+        x1 -= x2;
+        y1 -= y2;
+        return (float) Math.sqrt(x1 * x1 + y1 * y1);
+    }
+
+    /**
+     * Returns the square of the distance between two points.
+     *
+     * @param x1
+     *            the X coordinate of the first specified point
+     * @param y1
+     *            the Y coordinate of the first specified point
+     * @param x2
+     *            the X coordinate of the second specified point
+     * @param y2
+     *            the Y coordinate of the second specified point
+     * @return the square of the distance between the two sets of specified
+     *         coordinates.
+     */
+    public static float distanceSq(float x1, float y1, float x2, float y2) {
+        x1 -= x2;
+        y1 -= y2;
+        return (x1 * x1 + y1 * y1);
+    }
+
+    /**
      * The X coordinate of this <code>Point2D</code>.
      */
     public float x;
@@ -70,68 +109,37 @@ public class Point2D {
     }
 
     /**
-     * Sets the location of this <code>Point2D</code> to the specified
-     * <code>float</code> coordinates.
+     * Returns the distance from this <code>Point2D</code> to a specified point.
      *
-     * @param x
-     *            the new X coordinate of this {@code Point2D}
-     * @param y
-     *            the new Y coordinate of this {@code Point2D}
+     * @param px
+     *            the X coordinate of the specified point to be measured against
+     *            this <code>Point2D</code>
+     * @param py
+     *            the Y coordinate of the specified point to be measured against
+     *            this <code>Point2D</code>
+     * @return the distance between this <code>Point2D</code> and a specified
+     *         point.
      */
-    public void setLocation(float x, float y) {
-        this.x = x;
-        this.y = y;
+    public float distance(float px, float py) {
+        px -= x;
+        py -= y;
+        return (float) Math.sqrt(px * px + py * py);
     }
 
     /**
-     * Sets the location of this <code>Point2D</code> to the same coordinates as
-     * the specified <code>Point2D</code> object.
+     * Returns the distance from this <code>Point2D</code> to a specified
+     * <code>Point2D</code>.
      *
-     * @param p
-     *            the specified <code>Point2D</code> to which to set this
+     * @param pt
+     *            the specified point to be measured against this
      *            <code>Point2D</code>
+     * @return the distance between this <code>Point2D</code> and the specified
+     *         <code>Point2D</code>.
      */
-    public void setLocation(Point2D p) {
-        setLocation(p.x, p.y);
-    }
-
-    /**
-     * Returns the square of the distance between two points.
-     *
-     * @param x1
-     *            the X coordinate of the first specified point
-     * @param y1
-     *            the Y coordinate of the first specified point
-     * @param x2
-     *            the X coordinate of the second specified point
-     * @param y2
-     *            the Y coordinate of the second specified point
-     * @return the square of the distance between the two sets of specified
-     *         coordinates.
-     */
-    public static float distanceSq(float x1, float y1, float x2, float y2) {
-        x1 -= x2;
-        y1 -= y2;
-        return (x1 * x1 + y1 * y1);
-    }
-
-    /**
-     * Returns the distance between two points.
-     *
-     * @param x1
-     *            the X coordinate of the first specified point
-     * @param y1
-     *            the Y coordinate of the first specified point
-     * @param x2
-     *            the X coordinate of the second specified point
-     * @param y2
-     *            the Y coordinate of the second specified point
-     * @return the distance between the two sets of specified coordinates.
-     */
-    public static float distance(float x1, float y1, float x2, float y2) {
-        x1 -= x2;
-        y1 -= y2;
-        return (float) Math.sqrt(x1 * x1 + y1 * y1);
+    public float distance(Point2D pt) {
+        float px = pt.x - this.x;
+        float py = pt.y - this.y;
+        return (float) Math.sqrt(px * px + py * py);
     }
 
     /**
@@ -170,52 +178,6 @@ public class Point2D {
     }
 
     /**
-     * Returns the distance from this <code>Point2D</code> to a specified point.
-     *
-     * @param px
-     *            the X coordinate of the specified point to be measured against
-     *            this <code>Point2D</code>
-     * @param py
-     *            the Y coordinate of the specified point to be measured against
-     *            this <code>Point2D</code>
-     * @return the distance between this <code>Point2D</code> and a specified
-     *         point.
-     */
-    public float distance(float px, float py) {
-        px -= x;
-        py -= y;
-        return (float) Math.sqrt(px * px + py * py);
-    }
-
-    /**
-     * Returns the distance from this <code>Point2D</code> to a specified
-     * <code>Point2D</code>.
-     *
-     * @param pt
-     *            the specified point to be measured against this
-     *            <code>Point2D</code>
-     * @return the distance between this <code>Point2D</code> and the specified
-     *         <code>Point2D</code>.
-     */
-    public float distance(Point2D pt) {
-        float px = pt.x - this.x;
-        float py = pt.y - this.y;
-        return (float) Math.sqrt(px * px + py * py);
-    }
-
-    /**
-     * Returns the hashcode for this <code>Point2D</code>.
-     *
-     * @return a hash code for this <code>Point2D</code>.
-     */
-    @Override
-    public int hashCode() {
-        int bits = Float.floatToIntBits(x);
-        bits ^= Float.floatToIntBits(y) * 31;
-        return bits;
-    }
-
-    /**
      * Determines whether or not two points are equal. Two instances of
      * <code>Point2D</code> are equal if the values of their <code>x</code> and
      * <code>y</code> member fields, representing their position in the
@@ -237,6 +199,44 @@ public class Point2D {
             return (x == p2d.x) && (y == p2d.y);
         }
         return false;
+    }
+
+    /**
+     * Returns the hashcode for this <code>Point2D</code>.
+     *
+     * @return a hash code for this <code>Point2D</code>.
+     */
+    @Override
+    public int hashCode() {
+        int bits = Float.floatToIntBits(x);
+        bits ^= Float.floatToIntBits(y) * 31;
+        return bits;
+    }
+
+    /**
+     * Sets the location of this <code>Point2D</code> to the specified
+     * <code>float</code> coordinates.
+     *
+     * @param x
+     *            the new X coordinate of this {@code Point2D}
+     * @param y
+     *            the new Y coordinate of this {@code Point2D}
+     */
+    public void setLocation(float x, float y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * Sets the location of this <code>Point2D</code> to the same coordinates as
+     * the specified <code>Point2D</code> object.
+     *
+     * @param p
+     *            the specified <code>Point2D</code> to which to set this
+     *            <code>Point2D</code>
+     */
+    public void setLocation(Point2D p) {
+        setLocation(p.x, p.y);
     }
 
     /**

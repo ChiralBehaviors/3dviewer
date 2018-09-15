@@ -75,11 +75,110 @@ import javafx.util.Duration;
  * Gui Util App for converting Heights 2 Normals
  */
 public class Height2NormalApp extends Application {
-    private Image                       testImage;
+    private class View3D {
+        private AutoScalingGroup        autoScalingGroup  = new AutoScalingGroup(2);
+        private final PerspectiveCamera camera            = new PerspectiveCamera(true);
+        private final Rotate            cameraLookXRotate = new Rotate(0, 0, 0,
+                                                                       0,
+                                                                       Rotate.X_AXIS);
+        private final Rotate            cameraLookZRotate = new Rotate(0, 0, 0,
+                                                                       0,
+                                                                       Rotate.Z_AXIS);
+        private final Translate         cameraPosition    = new Translate(0, 0,
+                                                                          -7);
+        private final Rotate            cameraXRotate     = new Rotate(-40, 0,
+                                                                       0, 0,
+                                                                       Rotate.X_AXIS);
+        private final Rotate            cameraYRotate     = new Rotate(-20, 0,
+                                                                       0, 0,
+                                                                       Rotate.Y_AXIS);
+        private final Group             root3D            = new Group();
+
+        public SubScene create() {
+            SubScene scene = new SubScene(root3D, 512, 512, true, null);
+            scene.setFill(Color.ALICEBLUE);
+
+            // CAMERA
+            camera.getTransforms()
+                  .addAll(cameraXRotate, cameraYRotate, cameraPosition,
+                          cameraLookXRotate, cameraLookZRotate);
+            camera.setNearClip(0.1);
+            camera.setFarClip(100);
+            scene.setCamera(camera);
+            root3D.getChildren()
+                  .addAll(camera, autoScalingGroup);
+
+            Box box = new Box(10, 0.11, 10);
+
+            PhongMaterial material = new PhongMaterial(Color.DODGERBLUE);
+            material.bumpMapProperty()
+                    .bind(normalImage);
+            box.setMaterial(material);
+
+            autoScalingGroup.getChildren()
+                            .add(box);
+
+            Timeline timeline = new Timeline(new KeyFrame(Duration.ZERO,
+                                                          new KeyValue(cameraYRotate.angleProperty(),
+                                                                       0)),
+                                             new KeyFrame(Duration.seconds(10),
+                                                          new KeyValue(cameraYRotate.angleProperty(),
+                                                                       360)));
+            timeline.setCycleCount(Animation.INDEFINITE);
+            timeline.play();
+
+            return scene;
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    private File                        heightFile;
     private SimpleObjectProperty<Image> heightImage = new SimpleObjectProperty<>();
     private SimpleObjectProperty<Image> normalImage = new SimpleObjectProperty<>();
-    private File                        heightFile;
+
     private Stage                       stage;
+
+    private Image                       testImage;
+
+    public void open() {
+        FileChooser fileChooser = new FileChooser();
+        heightFile = fileChooser.showOpenDialog(stage);
+        if (heightFile != null) {
+            try {
+                heightImage.set(new Image(heightFile.toURI()
+                                                    .toURL()
+                                                    .toExternalForm()));
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            heightImage.set(testImage);
+        }
+    }
+
+    public void save() {
+        FileChooser fileChooser = new FileChooser();
+        if (heightFile != null) {
+            String filePath = heightFile.getName();
+            fileChooser.setInitialFileName(filePath.substring(0,
+                                                              filePath.lastIndexOf('.'))
+                                           + "-normal-map.png");
+        } else {
+            fileChooser.setInitialFileName("normal-map.png");
+        }
+        File normalFile = fileChooser.showSaveDialog(stage);
+        if (normalFile != null) {
+            try {
+                ImageIO.write(SwingFXUtils.fromFXImage(normalImage.get(), null),
+                              "png", normalFile);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -141,102 +240,5 @@ public class Height2NormalApp extends Application {
         Scene scene = new Scene(root);
         stage.setScene(scene);
         stage.show();
-    }
-
-    public void open() {
-        FileChooser fileChooser = new FileChooser();
-        heightFile = fileChooser.showOpenDialog(stage);
-        if (heightFile != null) {
-            try {
-                heightImage.set(new Image(heightFile.toURI()
-                                                    .toURL()
-                                                    .toExternalForm()));
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            }
-        } else {
-            heightImage.set(testImage);
-        }
-    }
-
-    public void save() {
-        FileChooser fileChooser = new FileChooser();
-        if (heightFile != null) {
-            String filePath = heightFile.getName();
-            fileChooser.setInitialFileName(filePath.substring(0,
-                                                              filePath.lastIndexOf('.'))
-                                           + "-normal-map.png");
-        } else {
-            fileChooser.setInitialFileName("normal-map.png");
-        }
-        File normalFile = fileChooser.showSaveDialog(stage);
-        if (normalFile != null) {
-            try {
-                ImageIO.write(SwingFXUtils.fromFXImage(normalImage.get(), null),
-                              "png", normalFile);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public static void main(String[] args) {
-        launch(args);
-    }
-
-    private class View3D {
-        private final Group             root3D            = new Group();
-        private final PerspectiveCamera camera            = new PerspectiveCamera(true);
-        private final Rotate            cameraXRotate     = new Rotate(-40, 0,
-                                                                       0, 0,
-                                                                       Rotate.X_AXIS);
-        private final Rotate            cameraYRotate     = new Rotate(-20, 0,
-                                                                       0, 0,
-                                                                       Rotate.Y_AXIS);
-        private final Rotate            cameraLookXRotate = new Rotate(0, 0, 0,
-                                                                       0,
-                                                                       Rotate.X_AXIS);
-        private final Rotate            cameraLookZRotate = new Rotate(0, 0, 0,
-                                                                       0,
-                                                                       Rotate.Z_AXIS);
-        private final Translate         cameraPosition    = new Translate(0, 0,
-                                                                          -7);
-        private AutoScalingGroup        autoScalingGroup  = new AutoScalingGroup(2);
-
-        public SubScene create() {
-            SubScene scene = new SubScene(root3D, 512, 512, true, null);
-            scene.setFill(Color.ALICEBLUE);
-
-            // CAMERA
-            camera.getTransforms()
-                  .addAll(cameraXRotate, cameraYRotate, cameraPosition,
-                          cameraLookXRotate, cameraLookZRotate);
-            camera.setNearClip(0.1);
-            camera.setFarClip(100);
-            scene.setCamera(camera);
-            root3D.getChildren()
-                  .addAll(camera, autoScalingGroup);
-
-            Box box = new Box(10, 0.11, 10);
-
-            PhongMaterial material = new PhongMaterial(Color.DODGERBLUE);
-            material.bumpMapProperty()
-                    .bind(normalImage);
-            box.setMaterial(material);
-
-            autoScalingGroup.getChildren()
-                            .add(box);
-
-            Timeline timeline = new Timeline(new KeyFrame(Duration.ZERO,
-                                                          new KeyValue(cameraYRotate.angleProperty(),
-                                                                       0)),
-                                             new KeyFrame(Duration.seconds(10),
-                                                          new KeyValue(cameraYRotate.angleProperty(),
-                                                                       360)));
-            timeline.setCycleCount(Animation.INDEFINITE);
-            timeline.play();
-
-            return scene;
-        }
     }
 }

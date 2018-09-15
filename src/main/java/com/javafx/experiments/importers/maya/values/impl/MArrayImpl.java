@@ -42,10 +42,57 @@ import com.javafx.experiments.importers.maya.values.MArray;
 import com.javafx.experiments.importers.maya.values.MData;
 
 public class MArrayImpl extends MDataImpl implements MArray {
-    public static final boolean DEBUG = MayaImporter.DEBUG;
-    public static final boolean WARN  = MayaImporter.WARN;
+    class MArraySlice extends MDataImpl implements MArray {
+        private MArray array;
+        private int    base;
+        private int    length;
 
-    List<MData>                 data  = new ArrayList<>();
+        MArraySlice(MArray array, int base, int length) {
+            super(array.getType());
+            this.array = array;
+            this.base = base;
+            this.length = length;
+        }
+
+        @Override
+        public List<MData> get() {
+            // FIXME
+            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
+        }
+
+        @Override
+        public MData getData(int index) {
+            return array.getData(base + index);
+        }
+
+        @Override
+        public MData getData(int start, int end) {
+            return new MArraySlice(this, start, end - start);
+        }
+
+        @Override
+        public int getSize() {
+            return length;
+        }
+
+        @Override
+        public void parse(Iterator<String> values) {
+            new Parser(this).parse(values);
+        }
+
+        @Override
+        public void set(int index, MData data) {
+            if (index >= length) {
+                throw new ArrayIndexOutOfBoundsException(index);
+            }
+            array.set(base + index, data);
+        }
+
+        @Override
+        public void setSize(int size) {
+            array.setSize(base + size);
+        }
+    }
 
     static class Parser {
         private MArray array;
@@ -66,69 +113,23 @@ public class MArrayImpl extends MDataImpl implements MArray {
         }
     }
 
-    class MArraySlice extends MDataImpl implements MArray {
-        private MArray array;
-        private int    base;
-        private int    length;
+    public static final boolean DEBUG = MayaImporter.DEBUG;
 
-        MArraySlice(MArray array, int base, int length) {
-            super(array.getType());
-            this.array = array;
-            this.base = base;
-            this.length = length;
-        }
+    public static final boolean WARN  = MayaImporter.WARN;
 
-        @Override
-        public void setSize(int size) {
-            array.setSize(base + size);
-        }
-
-        @Override
-        public int getSize() {
-            return length;
-        }
-
-        @Override
-        public void set(int index, MData data) {
-            if (index >= length) {
-                throw new ArrayIndexOutOfBoundsException(index);
-            }
-            array.set(base + index, data);
-        }
-
-        @Override
-        public MData getData(int index) {
-            return array.getData(base + index);
-        }
-
-        @Override
-        public MData getData(int start, int end) {
-            return new MArraySlice(this, start, end - start);
-        }
-
-        @Override
-        public List<MData> get() {
-            // FIXME
-            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
-        }
-
-        @Override
-        public void parse(Iterator<String> values) {
-            new Parser(this).parse(values);
-        }
-    }
+    List<MData>                 data  = new ArrayList<>();
 
     public MArrayImpl(MArrayType type) {
         super(type);
     }
 
-    public MArrayType getArrayType() {
-        return (MArrayType) getType();
-    }
-
     @Override
     public List<MData> get() {
         return data;
+    }
+
+    public MArrayType getArrayType() {
+        return (MArrayType) getType();
     }
 
     @Override
@@ -150,6 +151,16 @@ public class MArrayImpl extends MDataImpl implements MArray {
     }
 
     @Override
+    public int getSize() {
+        return data.size();
+    }
+
+    @Override
+    public void parse(Iterator<String> values) {
+        new Parser(this).parse(values);
+    }
+
+    @Override
     public void set(int index, MData data) {
         this.data.set(index, data);
     }
@@ -161,16 +172,6 @@ public class MArrayImpl extends MDataImpl implements MArray {
                                    .createData());
         }
         //        System.out.println("SET SIZE: " + size + " data.size="+data.size());
-    }
-
-    @Override
-    public int getSize() {
-        return data.size();
-    }
-
-    @Override
-    public void parse(Iterator<String> values) {
-        new Parser(this).parse(values);
     }
 
     @Override

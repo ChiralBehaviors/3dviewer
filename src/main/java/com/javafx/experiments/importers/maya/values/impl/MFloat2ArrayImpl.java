@@ -40,7 +40,47 @@ import com.javafx.experiments.importers.maya.values.MFloat2Array;
 
 public class MFloat2ArrayImpl extends MDataImpl implements MFloat2Array {
 
-    private float[] data;
+    static class MFloat2ArraySlice extends MDataImpl implements MFloat2Array {
+        private MFloat2Array array;
+        private int          base;
+        private int          length;
+
+        MFloat2ArraySlice(MFloat2Array array, int base, int length) {
+            super(array.getType());
+            this.array = array;
+            this.base = base;
+            this.length = length;
+        }
+
+        @Override
+        public float[] get() {
+            // FIXME
+            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
+        }
+
+        @Override
+        public int getSize() {
+            return length;
+        }
+
+        @Override
+        public void parse(Iterator<String> elements) {
+            new Parser(this).parse(elements);
+        }
+
+        @Override
+        public void set(int index, float x, float y) {
+            if (index >= length) {
+                throw new ArrayIndexOutOfBoundsException(index);
+            }
+            array.set(base + index, x, y);
+        }
+
+        @Override
+        public void setSize(int size) {
+            array.setSize(base + size);
+        }
+    }
 
     static class Parser {
         private MFloat2Array array;
@@ -58,72 +98,10 @@ public class MFloat2ArrayImpl extends MDataImpl implements MFloat2Array {
         }
     }
 
-    static class MFloat2ArraySlice extends MDataImpl implements MFloat2Array {
-        private MFloat2Array array;
-        private int          base;
-        private int          length;
-
-        MFloat2ArraySlice(MFloat2Array array, int base, int length) {
-            super(array.getType());
-            this.array = array;
-            this.base = base;
-            this.length = length;
-        }
-
-        @Override
-        public void setSize(int size) {
-            array.setSize(base + size);
-        }
-
-        @Override
-        public int getSize() {
-            return length;
-        }
-
-        @Override
-        public void set(int index, float x, float y) {
-            if (index >= length) {
-                throw new ArrayIndexOutOfBoundsException(index);
-            }
-            array.set(base + index, x, y);
-        }
-
-        @Override
-        public float[] get() {
-            // FIXME
-            throw new RuntimeException("Probably shouldn't fetch the data behind a slice");
-        }
-
-        @Override
-        public void parse(Iterator<String> elements) {
-            new Parser(this).parse(elements);
-        }
-    }
+    private float[] data;
 
     public MFloat2ArrayImpl(MFloat2ArrayType type) {
         super(type);
-    }
-
-    @Override
-    public void setSize(int size) {
-        if (data == null || 2 * size > data.length) {
-            float[] newdata = new float[2 * size];
-            if (data != null) {
-                System.arraycopy(data, 0, newdata, 0, data.length);
-            }
-            data = newdata;
-        }
-    }
-
-    @Override
-    public void set(int index, float x, float y) {
-        data[2 * index + 0] = x;
-        data[2 * index + 1] = y;
-    }
-
-    @Override
-    public int getSize() {
-        return data == null ? 0 : data.length / 2;
     }
 
     @Override
@@ -143,8 +121,30 @@ public class MFloat2ArrayImpl extends MDataImpl implements MFloat2Array {
     }
 
     @Override
+    public int getSize() {
+        return data == null ? 0 : data.length / 2;
+    }
+
+    @Override
     public void parse(Iterator<String> elements) {
         new Parser(this).parse(elements);
+    }
+
+    @Override
+    public void set(int index, float x, float y) {
+        data[2 * index + 0] = x;
+        data[2 * index + 1] = y;
+    }
+
+    @Override
+    public void setSize(int size) {
+        if (data == null || 2 * size > data.length) {
+            float[] newdata = new float[2 * size];
+            if (data != null) {
+                System.arraycopy(data, 0, newdata, 0, data.length);
+            }
+            data = newdata;
+        }
     }
 
     @Override

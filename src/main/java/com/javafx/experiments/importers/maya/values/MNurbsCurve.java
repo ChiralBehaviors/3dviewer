@@ -33,21 +33,21 @@
 package com.javafx.experiments.importers.maya.values;
 
 public interface MNurbsCurve extends MData {
+    public float[] getCVs();
+
     public int getDegree();
-
-    public int getSpans();
-
-    public int getForm();
-
-    public boolean isRational();
 
     public int getDimension();
 
-    public int getNumKnots();
+    public int getForm();
 
     public float[] getKnots();
 
     public int getNumCVs();
 
-    public float[] getCVs();
+    public int getNumKnots();
+
+    public int getSpans();
+
+    public boolean isRational();
 }

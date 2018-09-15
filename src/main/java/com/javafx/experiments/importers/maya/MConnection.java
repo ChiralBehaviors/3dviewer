@@ -35,20 +35,28 @@ package com.javafx.experiments.importers.maya;
 import java.util.Comparator;
 
 public class MConnection {
-    private MPath sourcePath;
-    private MPath targetPath;
+    public static final Comparator<Object> SOURCE_PATH_COMPARATOR = (o1,
+                                                                     o2) -> {
+                                                                      MConnection c1 = (MConnection) o1;
+                                                                      MConnection c2 = (MConnection) o2;
+                                                                      return c1.getSourcePath()
+                                                                               .compareTo(c2.getSourcePath());
+                                                                  };
+    public static final Comparator<Object> TARGET_PATH_COMPARATOR = (o1,
+                                                                     o2) -> {
+                                                                      MConnection c1 = (MConnection) o1;
+                                                                      MConnection c2 = (MConnection) o2;
+                                                                      return c1.getTargetPath()
+                                                                               .compareTo(c2.getTargetPath());
+                                                                  };
+
+    private MPath                          sourcePath;
+
+    private MPath                          targetPath;
 
     public MConnection(MPath sourcePath, MPath targetPath) {
         this.sourcePath = sourcePath;
         this.targetPath = targetPath;
-    }
-
-    public MPath getSourcePath() {
-        return sourcePath;
-    }
-
-    public MPath getTargetPath() {
-        return targetPath;
     }
 
     @Override
@@ -61,22 +69,16 @@ public class MConnection {
                 && targetPath.equals(other.targetPath));
     }
 
+    public MPath getSourcePath() {
+        return sourcePath;
+    }
+
+    public MPath getTargetPath() {
+        return targetPath;
+    }
+
     @Override
     public int hashCode() {
         return sourcePath.hashCode() ^ targetPath.hashCode();
     }
-
-    public static final Comparator<Object> SOURCE_PATH_COMPARATOR = (o1, o2) -> {
-                                                              MConnection c1 = (MConnection) o1;
-                                                              MConnection c2 = (MConnection) o2;
-                                                              return c1.getSourcePath()
-                                                                       .compareTo(c2.getSourcePath());
-                                                          };
-
-    public static final Comparator<Object> TARGET_PATH_COMPARATOR = (o1, o2) -> {
-                                                              MConnection c1 = (MConnection) o1;
-                                                              MConnection c2 = (MConnection) o2;
-                                                              return c1.getTargetPath()
-                                                                       .compareTo(c2.getTargetPath());
-                                                          };
 }

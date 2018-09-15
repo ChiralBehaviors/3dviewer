@@ -46,29 +46,28 @@ import com.javafx.experiments.importers.maya.values.MData;
 
 public class MNode extends MObject {
 
-    MNodeType          nodeType;
+    List<MNode>        childNodes   = new ArrayList<MNode>();
     boolean            hasLocalType = false;
+    MNodeType          nodeType;
+
+    List<MNode>        parentNodes  = new ArrayList<MNode>();
+
     Map<String, MData> values       = new HashMap<String, MData>();
 
-    public void createInstance(String instanceName) {
+    public MNode(MEnv env, MNodeType type, String name) {
+        super(env, name);
+        this.nodeType = type;
     }
 
-    public MNodeType getLocalType() {
-        if (!hasLocalType) {
-            hasLocalType = true;
-            final MNodeType superType = nodeType;
-            MNodeType localType = new MNodeType(getEnv(), getFullName()) {
-                {
-                    addSuperType(superType);
-                }
-            };
-            nodeType = localType;
+    @Override
+    public void accept(MEnv.Visitor visitor) {
+        visitor.visitNode(this);
+        for (Map.Entry<String, MData> e : values.entrySet()) {
+            visitor.visitNodeAttribute(this,
+                                       getNodeType().getAttribute(e.getKey()),
+                                       e.getValue());
         }
-        return nodeType;
     }
-
-    List<MNode> parentNodes = new ArrayList<MNode>();
-    List<MNode> childNodes  = new ArrayList<MNode>();
 
     public void addAttr(String longName, String shortName, String dataType,
                         boolean isArray) {
@@ -96,17 +95,42 @@ public class MNode extends MObject {
                                                    shortName, t));
     }
 
-    public void setParentNode(MNode n) {
-        parentNodes.add(n);
-        n.childNodes.add(this);
+    public void createInstance(String instanceName) {
     }
 
-    public List<MNode> getParentNodes() {
-        return parentNodes;
+    public MData getAttr(MAttribute attribute) {
+        MData data = values.get(attribute.getShortName());
+        if (data == null) {
+            if (data == null) {
+                if (attribute.getType() == null) {
+                    // System.err.println("ATTRIBUTE TYPE is NULL: " + attribute);
+                    return null;
+                }
+                data = attribute.getType()
+                                .createData();
+            }
+            values.put(attribute.getShortName(), data);
+        }
+        return data;
     }
 
-    public List<MNode> getChildNodes() {
-        return childNodes;
+    public MData getAttr(String name) {
+        MPath path = new MPath(this, name);
+        // System.err.println("GET ATTR: " + getName() + " . " + name);
+        return path.apply();
+    }
+
+    public MData getAttrDirect(String attrName) {
+        MAttribute attr = getNodeType().getAttribute(attrName);
+        if (attr == null) {
+            // System.err.println("getAttrDirect: no such attr: " + attrName);
+            return null;
+        }
+        return getAttr(attr);
+    }
+
+    public String getCanonicalName(String name) {
+        return getNodeType().getCanonicalName(name);
     }
 
     public MNode getChildNode(String name) {
@@ -118,27 +142,37 @@ public class MNode extends MObject {
         return null;
     }
 
-    public MNode(MEnv env, MNodeType type, String name) {
-        super(env, name);
-        this.nodeType = type;
+    public List<MNode> getChildNodes() {
+        return childNodes;
     }
 
-    public boolean isInstanceOf(MNodeType t) {
-        return t.isAssignableFrom(getNodeType());
+    /**
+     * Returns a list of MConnections connecting out of the given attribute,
+     * sorted by the source path.
+     */
+    public List<?> getConnectionsFrom(String attr) {
+        Set<?> c = getEnv().getConnectionsFrom(new MPath(this, "." + attr));
+        List<Object> result = new ArrayList<>();
+        result.addAll(c);
+        Collections.sort(result, MConnection.SOURCE_PATH_COMPARATOR);
+        return result;
     }
 
-    @Override
-    public void accept(MEnv.Visitor visitor) {
-        visitor.visitNode(this);
-        for (Map.Entry<String, MData> e : values.entrySet()) {
-            visitor.visitNodeAttribute(this,
-                                       getNodeType().getAttribute(e.getKey()),
-                                       e.getValue());
-        }
+    /**
+     * Returns a list of MConnections connecting into the given attribute,
+     * sorted by the target path.
+     */
+    public List<MConnection> getConnectionsTo(String attr) {
+        Set<MConnection> c = getEnv().getConnectionsTo(new MPath(this,
+                                                                 "." + attr));
+        List<MConnection> result = new ArrayList<MConnection>();
+        result.addAll(c);
+        Collections.sort(result, MConnection.TARGET_PATH_COMPARATOR);
+        return result;
     }
 
-    public MNodeType getNodeType() {
-        return nodeType;
+    public void getConnectionsTo(String attr, Set<MConnection> result) {
+        getEnv().getConnectionsTo(new MPath(this, "." + attr), true, result);
     }
 
     public String getFullName() {
@@ -161,51 +195,8 @@ public class MNode extends MObject {
         return result;
     }
 
-    /**
-     * Returns a list of MConnections connecting out of the given attribute,
-     * sorted by the source path.
-     */ 
-    public List<?> getConnectionsFrom(String attr) {
-        Set<?> c = getEnv().getConnectionsFrom(new MPath(this, "." + attr));
-        List<Object> result = new ArrayList<>();
-        result.addAll(c);
-        Collections.sort(result, MConnection.SOURCE_PATH_COMPARATOR);
-        return result;
-    }
-
-    /** Returns a list of MPaths connecting out of the given attribute. */
-    public List<MPath> getPathsConnectingFrom(String attr) {
-        Set<MPath> c = getEnv().getPathsConnectingFrom(new MPath(this,
-                                                                 "." + attr));
-        List<MPath> result = new ArrayList<MPath>();
-        result.addAll(c);
-        return result;
-    }
-
-    public void getConnectionsTo(String attr, Set<MConnection> result) {
-        getEnv().getConnectionsTo(new MPath(this, "." + attr), true, result);
-    }
-
-    /**
-     * Returns a list of MConnections connecting into the given attribute,
-     * sorted by the target path.
-     */
-    public List<MConnection> getConnectionsTo(String attr) {
-        Set<MConnection> c = getEnv().getConnectionsTo(new MPath(this,
-                                                                 "." + attr));
-        List<MConnection> result = new ArrayList<MConnection>();
-        result.addAll(c);
-        Collections.sort(result, MConnection.TARGET_PATH_COMPARATOR);
-        return result;
-    }
-
-    /** Returns a list of MPaths connecting into the given attribute. */
-    public List<MPath> getPathsConnectingTo(String attr) {
-        Set<MPath> c = getEnv().getPathsConnectingTo(new MPath(this,
-                                                               "." + attr));
-        List<MPath> result = new ArrayList<MPath>();
-        result.addAll(c);
-        return result;
+    public Set<MConnection> getIncomingConnections() {
+        return getEnv().getIncomingConnections(this);
     }
 
     public MNode getIncomingConnectionToType(String fromAttr, String nodeType) {
@@ -224,6 +215,28 @@ public class MNode extends MObject {
             }
         }
         return null;
+    }
+
+    public MNodeType getLocalType() {
+        if (!hasLocalType) {
+            hasLocalType = true;
+            final MNodeType superType = nodeType;
+            MNodeType localType = new MNodeType(getEnv(), getFullName()) {
+                {
+                    addSuperType(superType);
+                }
+            };
+            nodeType = localType;
+        }
+        return nodeType;
+    }
+
+    public MNodeType getNodeType() {
+        return nodeType;
+    }
+
+    public Set<MConnection> getOutgoingConnections() {
+        return getEnv().getOutgoingConnections(this);
     }
 
     public MNode getOutgoingConnectionToType(String fromAttr, String nodeType) {
@@ -246,39 +259,34 @@ public class MNode extends MObject {
         return null;
     }
 
-    public MData getAttr(MAttribute attribute) {
-        MData data = values.get(attribute.getShortName());
-        if (data == null) {
-            if (data == null) {
-                if (attribute.getType() == null) {
-                    // System.err.println("ATTRIBUTE TYPE is NULL: " + attribute);
-                    return null;
-                }
-                data = attribute.getType()
-                                .createData();
-            }
-            values.put(attribute.getShortName(), data);
-        }
-        return data;
+    public List<MNode> getParentNodes() {
+        return parentNodes;
     }
 
-    public MData getAttrDirect(String attrName) {
-        MAttribute attr = getNodeType().getAttribute(attrName);
-        if (attr == null) {
-            // System.err.println("getAttrDirect: no such attr: " + attrName);
-            return null;
-        }
-        return getAttr(attr);
+    /** Returns a list of MPaths connecting out of the given attribute. */
+    public List<MPath> getPathsConnectingFrom(String attr) {
+        Set<MPath> c = getEnv().getPathsConnectingFrom(new MPath(this,
+                                                                 "." + attr));
+        List<MPath> result = new ArrayList<MPath>();
+        result.addAll(c);
+        return result;
     }
 
-    public String getCanonicalName(String name) {
-        return getNodeType().getCanonicalName(name);
+    /** Returns a list of MPaths connecting into the given attribute. */
+    public List<MPath> getPathsConnectingTo(String attr) {
+        Set<MPath> c = getEnv().getPathsConnectingTo(new MPath(this,
+                                                               "." + attr));
+        List<MPath> result = new ArrayList<MPath>();
+        result.addAll(c);
+        return result;
     }
 
-    public MData getAttr(String name) {
-        MPath path = new MPath(this, name);
-        // System.err.println("GET ATTR: " + getName() + " . " + name);
-        return path.apply();
+    public boolean isInstanceOf(MNodeType t) {
+        return t.isAssignableFrom(getNodeType());
+    }
+
+    public void parent(MNode parent) {
+        parentNodes.add(parent);
     }
 
     public void setAttr(MAttribute attr, MData value) {
@@ -296,15 +304,8 @@ public class MNode extends MObject {
         values.put(name, value);
     }
 
-    public Set<MConnection> getIncomingConnections() {
-        return getEnv().getIncomingConnections(this);
-    }
-
-    public Set<MConnection> getOutgoingConnections() {
-        return getEnv().getOutgoingConnections(this);
-    }
-
-    public void parent(MNode parent) {
-        parentNodes.add(parent);
+    public void setParentNode(MNode n) {
+        parentNodes.add(n);
+        n.childNodes.add(this);
     }
 }

@@ -46,10 +46,15 @@ import javafx.util.Duration;
  */
 public class FourWayNavControl extends GridPane {
 
-    private FourWayListener listener;
+    public static interface FourWayListener {
+        public void navigateStep(Side direction, double amount);
+    }
+
     private Side            currentDirection = null;
     private Timeline        eventFiringTimeline;
     private boolean         hasFired         = false;
+
+    private FourWayListener listener;
 
     public FourWayNavControl() {
         getStyleClass().addAll("button", "four-way");
@@ -129,9 +134,5 @@ public class FourWayNavControl extends GridPane {
 
     public void setListener(FourWayListener listener) {
         this.listener = listener;
-    }
-
-    public static interface FourWayListener {
-        public void navigateStep(Side direction, double amount);
     }
 }

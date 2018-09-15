@@ -62,11 +62,6 @@ public class MCompoundImpl extends MDataImpl implements MCompound {
     }
 
     @Override
-    public MData getFieldData(String fieldName) {
-        return getFieldData(getCompoundType().getFieldIndex(fieldName));
-    }
-
-    @Override
     public MData getFieldData(int fieldIndex) {
         if (fieldIndex < 0) {
             return null;
@@ -75,13 +70,8 @@ public class MCompoundImpl extends MDataImpl implements MCompound {
     }
 
     @Override
-    public void set(int fieldIndex, MData value) {
-        fieldData[fieldIndex] = value;
-    }
-
-    @Override
-    public void set(String fieldName, MData data) {
-        set(getCompoundType().getFieldIndex(fieldName), data);
+    public MData getFieldData(String fieldName) {
+        return getFieldData(getCompoundType().getFieldIndex(fieldName));
     }
 
     @Override
@@ -92,6 +82,16 @@ public class MCompoundImpl extends MDataImpl implements MCompound {
                 fdata.parse(data);
             }
         }
+    }
+
+    @Override
+    public void set(int fieldIndex, MData value) {
+        fieldData[fieldIndex] = value;
+    }
+
+    @Override
+    public void set(String fieldName, MData data) {
+        set(getCompoundType().getFieldIndex(fieldName), data);
     }
 
     @Override

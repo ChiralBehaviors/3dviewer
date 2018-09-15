@@ -62,11 +62,6 @@ public class MPath implements Comparable<Object> {
     static class Index extends Component {
         int index;
 
-        @Override
-        public String toString() {
-            return "[" + index + "]";
-        }
-
         public Index(int i) {
             index = i;
         }
@@ -75,23 +70,6 @@ public class MPath implements Comparable<Object> {
         public MData apply(MData data) {
             data.setSize(index + 1);
             return data.getData(index);
-        }
-
-        public int getIndex() {
-            return index;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (!(other instanceof Index)) {
-                return false;
-            }
-            return index == ((Index) other).index;
-        }
-
-        @Override
-        public int hashCode() {
-            return 11 + 17 * index;
         }
 
         @Override
@@ -107,14 +85,82 @@ public class MPath implements Comparable<Object> {
             throw new ClassCastException(arg.getClass()
                                             .getName());
         }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof Index)) {
+                return false;
+            }
+            return index == ((Index) other).index;
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        @Override
+        public int hashCode() {
+            return 11 + 17 * index;
+        }
+
+        @Override
+        public String toString() {
+            return "[" + index + "]";
+        }
+    }
+
+    static class Select extends Component {
+        String name;
+
+        public Select(String n) {
+            name = n;
+        }
+
+        @Override
+        public MData apply(MData data) {
+            return data.getData(name);
+        }
+
+        @Override
+        public MData apply(MNode node) {
+            return node.getAttrDirect(name);
+        }
+
+        @Override
+        public int compareTo(Object arg) {
+            if (arg instanceof Select) {
+                return name.compareTo(((Select) arg).name);
+            }
+
+            if (arg instanceof Component) {
+                return 1;
+            }
+
+            throw new ClassCastException(arg.getClass()
+                                            .getName());
+        }
+
+        @Override
+        public boolean equals(Object arg) {
+            if (!(arg instanceof Select)) {
+                return false;
+            }
+            Select other = (Select) arg;
+            return (name.equals(other.name));
+        }
+
+        @Override
+        public int hashCode() {
+            return name.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "." + name;
+        }
     }
 
     static class Slice extends Component {
-        @Override
-        public String toString() {
-            return "[" + start + ":" + end + "]";
-        }
-
         int start, end;
 
         public Slice(int i, int j) {
@@ -126,20 +172,6 @@ public class MPath implements Comparable<Object> {
         public MData apply(MData data) {
             data.setSize(end + 1);
             return data.getData(start, end);
-        }
-
-        @Override
-        public boolean equals(Object arg) {
-            if (!(arg instanceof Slice)) {
-                return false;
-            }
-            Slice other = (Slice) arg;
-            return (start == other.start && end == other.end);
-        }
-
-        @Override
-        public int hashCode() {
-            return 11 + 17 * start + 23 * end;
         }
 
         @Override
@@ -164,95 +196,35 @@ public class MPath implements Comparable<Object> {
             throw new ClassCastException(arg.getClass()
                                             .getName());
         }
-    }
-
-    static class Select extends Component {
-        @Override
-        public String toString() {
-            return "." + name;
-        }
-
-        String name;
-
-        public Select(String n) {
-            name = n;
-        }
-
-        @Override
-        public MData apply(MData data) {
-            return data.getData(name);
-        }
-
-        @Override
-        public MData apply(MNode node) {
-            return node.getAttrDirect(name);
-        }
 
         @Override
         public boolean equals(Object arg) {
-            if (!(arg instanceof Select)) {
+            if (!(arg instanceof Slice)) {
                 return false;
             }
-            Select other = (Select) arg;
-            return (name.equals(other.name));
+            Slice other = (Slice) arg;
+            return (start == other.start && end == other.end);
         }
 
         @Override
         public int hashCode() {
-            return name.hashCode();
+            return 11 + 17 * start + 23 * end;
         }
 
         @Override
-        public int compareTo(Object arg) {
-            if (arg instanceof Select) {
-                return name.compareTo(((Select) arg).name);
-            }
-
-            if (arg instanceof Component) {
-                return 1;
-            }
-
-            throw new ClassCastException(arg.getClass()
-                                            .getName());
+        public String toString() {
+            return "[" + start + ":" + end + "]";
         }
     }
+
+    MAttribute      attr;
+
+    int             attributeOffset = -1;
+
+    List<Component> components      = new ArrayList<Component>();
 
     // A Path always exists within the context of a given node
     MNode           node;
-
-    List<Component> components = new ArrayList<Component>();
-
-    private void add(Component comp) {
-        components.add(comp);
-    }
-
-    // Used to canonicalize for example in Mesh:
-    //  .iog.og[n] -> .iog[0].og[n]
-    private boolean selectsArray() {
-        if (components.size() == 0) {
-            return false;
-        }
-        // If we're already doing an array indexing as the last
-        // operation in the path, state that we aren't selecting an
-        // array
-        if (components.get(components.size() - 1) instanceof Index) {
-            return false;
-        }
-        MData data = apply();
-        if (data == null) {
-            return false;
-        }
-        // Should we be using MDataType instead for these type queries?
-        return ((data instanceof MArray) || (data instanceof MFloatArray)
-                || (data instanceof MFloat2Array)
-                || (data instanceof MFloat3Array) || (data instanceof MIntArray)
-                || (data instanceof MInt3Array));
-    }
-
-    private String canonicalize(String name) {
-        // FIXME: do we need to do this for deeper data types too?
-        return node.getCanonicalName(name);
-    }
 
     public MPath(MEnv env, String path) {
         String nodeName;
@@ -279,28 +251,13 @@ public class MPath implements Comparable<Object> {
         this.node = node;
     }
 
-    @Override
-    public boolean equals(Object arg) {
-        if (!(arg instanceof MPath)) {
-            return false;
+    public MData apply() {
+        if (components.size() == 0) {
+            return null;
         }
-        MPath other = (MPath) arg;
-        return (node == other.node && components.equals(other.components));
-    }
-
-    @Override
-    public int hashCode() {
-        int hashCode = 0;
-        for (Component comp : components) {
-            hashCode += 17 * comp.hashCode();
-        }
-        return hashCode;
-        /*
-        if (node == null) {
-            return 0;
-        }
-        return node.hashCode();
-        */
+        MData data = components.get(0)
+                               .apply(node);
+        return apply(1, data);
     }
 
     @Override
@@ -323,8 +280,101 @@ public class MPath implements Comparable<Object> {
         return 0;
     }
 
-    public boolean isValid() {
-        return getTargetNode() != null;
+    @Override
+    public boolean equals(Object arg) {
+        if (!(arg instanceof MPath)) {
+            return false;
+        }
+        MPath other = (MPath) arg;
+        return (node == other.node && components.equals(other.components));
+    }
+
+    public String getComponentSelector() {
+        int i = 0;
+        String result = "";
+        while (i < components.size()) {
+            result += components.get(i)
+                                .toString();
+            i++;
+        }
+        return result.substring(1);
+    }
+
+    public String getLastNamedPathComponent() {
+        for (int i = components.size() - 1; i >= 0; --i) {
+            Component comp = components.get(i);
+            if (comp instanceof Select) {
+                return comp.toString();
+            }
+        }
+        return null;
+    }
+
+    public String getLastPathComponent() {
+        return getPathComponent(components.size() - 1);
+    }
+
+    public int getLastPathIndex() {
+        Component component = components.get(components.size() - 1);
+        if (component instanceof Index) {
+            return ((Index) component).getIndex();
+        }
+        return -1;
+    }
+
+    public String getLastSelectionPathComponent() {
+        for (int i = components.size() - 1; i >= 0; --i) {
+            Component comp = components.get(i);
+            if (comp instanceof Select) {
+                String res = "";
+                for (int j = i; j < components.size(); j++) {
+                    res += getPathComponent(j);
+                }
+                return res;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns the parent path of this one -- i.e., the path with the last
+     * component removed.
+     */
+    public MPath getParentPath() {
+        MPath res = new MPath(node);
+        for (int i = 0; i < components.size() - 1; i++) {
+            res.add(components.get(i));
+        }
+        return res;
+    }
+
+    public String getPathComponent(int i) {
+        return components.get(i)
+                         .toString();
+    }
+
+    public MAttribute getTargetAttribute(MEnv env) {
+        _getAttributeOffset();
+        return attr;
+    }
+
+    public MNode getTargetNode() {
+        return node;
+    }
+
+    @Override
+    public int hashCode() {
+        int hashCode = 0;
+        for (Component comp : components) {
+            hashCode += 17 * comp.hashCode();
+        }
+        return hashCode;
+        /*
+        if (node == null) {
+            return 0;
+        }
+        return node.hashCode();
+        */
     }
 
     /** Indicates whether this path is a prefix of the given one. */
@@ -344,16 +394,44 @@ public class MPath implements Comparable<Object> {
         return true;
     }
 
-    /**
-     * Returns the parent path of this one -- i.e., the path with the last
-     * component removed.
-     */
-    public MPath getParentPath() {
-        MPath res = new MPath(node);
-        for (int i = 0; i < components.size() - 1; i++) {
-            res.add(components.get(i));
+    public boolean isValid() {
+        return getTargetNode() != null;
+    }
+
+    public int size() {
+        return components.size();
+    }
+
+    @Override
+    public String toString() {
+        if (node == null) {
+            return "[invalid path -- no node]";
+        } else {
+            return node.getFullName() + components.toString();
         }
-        return res;
+    }
+
+    int _getAttributeOffset() {
+        if (attributeOffset == -1) {
+            String selector = "";
+            int i = 0;
+            while (i < components.size()) {
+                selector += components.get(i)
+                                      .toString();
+                attr = getTargetNode().getNodeType()
+                                      .getAttribute(selector.substring(1));
+                if (attr != null) {
+                    attributeOffset = i;
+                    break;
+                }
+                i++;
+            }
+        }
+        return attributeOffset;
+    }
+
+    private void add(Component comp) {
+        components.add(comp);
     }
 
     private void addComponents(String path) {
@@ -440,15 +518,6 @@ public class MPath implements Comparable<Object> {
         }
     }
 
-    public MData apply() {
-        if (components.size() == 0) {
-            return null;
-        }
-        MData data = components.get(0)
-                               .apply(node);
-        return apply(1, data);
-    }
-
     private MData apply(int i, MData data) {
         while (i < components.size()) {
             if (data == null) {
@@ -460,99 +529,31 @@ public class MPath implements Comparable<Object> {
         return data;
     }
 
-    @Override
-    public String toString() {
-        if (node == null) {
-            return "[invalid path -- no node]";
-        } else {
-            return node.getFullName() + components.toString();
+    private String canonicalize(String name) {
+        // FIXME: do we need to do this for deeper data types too?
+        return node.getCanonicalName(name);
+    }
+
+    // Used to canonicalize for example in Mesh:
+    //  .iog.og[n] -> .iog[0].og[n]
+    private boolean selectsArray() {
+        if (components.size() == 0) {
+            return false;
         }
-    }
-
-    public MNode getTargetNode() {
-        return node;
-    }
-
-    int        attributeOffset = -1;
-    MAttribute attr;
-
-    int _getAttributeOffset() {
-        if (attributeOffset == -1) {
-            String selector = "";
-            int i = 0;
-            while (i < components.size()) {
-                selector += components.get(i)
-                                      .toString();
-                attr = getTargetNode().getNodeType()
-                                      .getAttribute(selector.substring(1));
-                if (attr != null) {
-                    attributeOffset = i;
-                    break;
-                }
-                i++;
-            }
+        // If we're already doing an array indexing as the last
+        // operation in the path, state that we aren't selecting an
+        // array
+        if (components.get(components.size() - 1) instanceof Index) {
+            return false;
         }
-        return attributeOffset;
-    }
-
-    public MAttribute getTargetAttribute(MEnv env) {
-        _getAttributeOffset();
-        return attr;
-    }
-
-    public String getComponentSelector() {
-        int i = 0;
-        String result = "";
-        while (i < components.size()) {
-            result += components.get(i)
-                                .toString();
-            i++;
+        MData data = apply();
+        if (data == null) {
+            return false;
         }
-        return result.substring(1);
-    }
-
-    public String getPathComponent(int i) {
-        return components.get(i)
-                         .toString();
-    }
-
-    public String getLastPathComponent() {
-        return getPathComponent(components.size() - 1);
-    }
-
-    public String getLastSelectionPathComponent() {
-        for (int i = components.size() - 1; i >= 0; --i) {
-            Component comp = components.get(i);
-            if (comp instanceof Select) {
-                String res = "";
-                for (int j = i; j < components.size(); j++) {
-                    res += getPathComponent(j);
-                }
-                return res;
-            }
-        }
-        return null;
-    }
-
-    public int getLastPathIndex() {
-        Component component = components.get(components.size() - 1);
-        if (component instanceof Index) {
-            return ((Index) component).getIndex();
-        }
-        return -1;
-    }
-
-    public String getLastNamedPathComponent() {
-        for (int i = components.size() - 1; i >= 0; --i) {
-            Component comp = components.get(i);
-            if (comp instanceof Select) {
-                return comp.toString();
-            }
-        }
-        return null;
-    }
-
-    public int size() {
-        return components.size();
+        // Should we be using MDataType instead for these type queries?
+        return ((data instanceof MArray) || (data instanceof MFloatArray)
+                || (data instanceof MFloat2Array)
+                || (data instanceof MFloat3Array) || (data instanceof MIntArray)
+                || (data instanceof MInt3Array));
     }
 }

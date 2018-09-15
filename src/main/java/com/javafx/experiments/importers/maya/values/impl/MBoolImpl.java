@@ -46,11 +46,6 @@ public class MBoolImpl extends MDataImpl implements MBool {
     }
 
     @Override
-    public void set(boolean value) {
-        this.value = value;
-    }
-
-    @Override
     public boolean get() {
         return value;
     }
@@ -63,6 +58,11 @@ public class MBoolImpl extends MDataImpl implements MBool {
         } else {
             value = false;
         }
+    }
+
+    @Override
+    public void set(boolean value) {
+        this.value = value;
     }
 
     @Override

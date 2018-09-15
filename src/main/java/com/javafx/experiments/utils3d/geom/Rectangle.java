@@ -115,6 +115,16 @@ package com.javafx.experiments.utils3d.geom;
 public class Rectangle {
 
     /**
+     * The height of the <code>Rectangle</code>.
+     */
+    public int height;
+
+    /**
+     * The width of the <code>Rectangle</code>.
+     */
+    public int width;
+
+    /**
      * The X coordinate of the upper-left corner of the <code>Rectangle</code>.
      */
     public int x;
@@ -123,16 +133,6 @@ public class Rectangle {
      * The Y coordinate of the upper-left corner of the <code>Rectangle</code>.
      */
     public int y;
-
-    /**
-     * The width of the <code>Rectangle</code>.
-     */
-    public int width;
-
-    /**
-     * The height of the <code>Rectangle</code>.
-     */
-    public int height;
 
     /**
      * Constructs a new <code>Rectangle</code> whose upper-left corner is at
@@ -156,18 +156,17 @@ public class Rectangle {
     }
 
     /**
-     * Constructs a new <code>Rectangle</code>, initialized to match the values
-     * of the specified <code>BaseBounds</code>. Since BaseBounds has float
-     * values, the Rectangle will be created such that the bounding rectangle of
-     * the specified BaseBounds would always lie within the bounding box
-     * specified by this Rectangle.
+     * Constructs a new <code>Rectangle</code> whose upper-left corner is at
+     * (0,&nbsp;0) in the coordinate space, and whose width and height are
+     * specified by the arguments of the same name.
      *
-     * @param r
-     *            the <code>BaseBounds</code> from which to copy initial values
-     *            to a newly constructed <code>Rectangle</code>
+     * @param width
+     *            the width of the <code>Rectangle</code>
+     * @param height
+     *            the height of the <code>Rectangle</code>
      */
-    public Rectangle(Rectangle r) {
-        this(r.x, r.y, r.width, r.height);
+    public Rectangle(int width, int height) {
+        this(0, 0, width, height);
     }
 
     /**
@@ -192,310 +191,18 @@ public class Rectangle {
     }
 
     /**
-     * Constructs a new <code>Rectangle</code> whose upper-left corner is at
-     * (0,&nbsp;0) in the coordinate space, and whose width and height are
-     * specified by the arguments of the same name.
-     *
-     * @param width
-     *            the width of the <code>Rectangle</code>
-     * @param height
-     *            the height of the <code>Rectangle</code>
-     */
-    public Rectangle(int width, int height) {
-        this(0, 0, width, height);
-    }
-
-    /**
-     * Sets the bounding <code>Rectangle</code> of this <code>Rectangle</code>
-     * to match the specified <code>Rectangle</code>.
-     * <p>
-     * This method is included for completeness, to parallel the
-     * <code>setBounds</code> method of <code>Component</code>.
+     * Constructs a new <code>Rectangle</code>, initialized to match the values
+     * of the specified <code>BaseBounds</code>. Since BaseBounds has float
+     * values, the Rectangle will be created such that the bounding rectangle of
+     * the specified BaseBounds would always lie within the bounding box
+     * specified by this Rectangle.
      *
      * @param r
-     *            the specified <code>Rectangle</code>
-     * @see #getBounds
-     * @see java.awt.Component#setBounds(java.awt.Rectangle)
+     *            the <code>BaseBounds</code> from which to copy initial values
+     *            to a newly constructed <code>Rectangle</code>
      */
-    public void setBounds(Rectangle r) {
-        setBounds(r.x, r.y, r.width, r.height);
-    }
-
-    /**
-     * Sets the bounding <code>Rectangle</code> of this <code>Rectangle</code>
-     * to the specified <code>x</code>, <code>y</code>, <code>width</code>, and
-     * <code>height</code>.
-     * <p>
-     * This method is included for completeness, to parallel the
-     * <code>setBounds</code> method of <code>Component</code>.
-     *
-     * @param x
-     *            the new X coordinate for the upper-left corner of this
-     *            <code>Rectangle</code>
-     * @param y
-     *            the new Y coordinate for the upper-left corner of this
-     *            <code>Rectangle</code>
-     * @param width
-     *            the new width for this <code>Rectangle</code>
-     * @param height
-     *            the new height for this <code>Rectangle</code>
-     * @see #getBounds
-     * @see java.awt.Component#setBounds(int, int, int, int)
-     */
-    public void setBounds(int x, int y, int width, int height) {
-        reshape(x, y, width, height);
-    }
-
-    public void setBounds(BaseBounds b) {
-        x = (int) Math.floor(b.getMinX());
-        y = (int) Math.floor(b.getMinY());
-        int x2 = (int) Math.ceil(b.getMaxX());
-        int y2 = (int) Math.ceil(b.getMaxY());
-        width = x2 - x;
-        height = y2 - y;
-    }
-
-    /**
-     * Checks whether or not this <code>Rectangle</code> contains the point at
-     * the specified location {@code (cx, cy)}.
-     *
-     * @param cx
-     *            the specified X coordinate
-     * @param cy
-     *            the specified Y coordinate
-     * @return <code>true</code> if the point {@code (cx, cy)} is inside this
-     *         <code>Rectangle</code>; <code>false</code> otherwise.
-     */
-    public boolean contains(int cx, int cy) {
-        int tw = this.width;
-        int th = this.height;
-        if ((tw | th) < 0) {
-            // At least one of the dimensions is negative...
-            return false;
-        }
-        // Note: if either dimension is zero, tests below must return false...
-        int tx = this.x;
-        int ty = this.y;
-        if (cx < tx || cy < ty) {
-            return false;
-        }
-        tw += tx;
-        th += ty;
-        //    overflow || intersect
-        return ((tw < tx || tw > cx) && (th < ty || th > cy));
-    }
-
-    /**
-     * Checks whether or not this <code>Rectangle</code> entirely contains the
-     * specified <code>Rectangle</code>.
-     *
-     * @param r
-     *            the specified <code>Rectangle</code>
-     * @return <code>true</code> if the <code>Rectangle</code> is contained
-     *         entirely inside this <code>Rectangle</code>; <code>false</code>
-     *         otherwise
-     */
-    public boolean contains(Rectangle r) {
-        return contains(r.x, r.y, r.width, r.height);
-    }
-
-    /**
-     * Checks whether this <code>Rectangle</code> entirely contains the
-     * <code>Rectangle</code> at the specified location {@code (cx, cy)} with
-     * the specified dimensions {@code (cw, ch)}.
-     *
-     * @param cx
-     *            the specified X coordinate
-     * @param cy
-     *            the specified Y coordinate
-     * @param cw
-     *            the width of the <code>Rectangle</code>
-     * @param ch
-     *            the height of the <code>Rectangle</code>
-     * @return <code>true</code> if the <code>Rectangle</code> specified by
-     *         {@code (cx, cy, cw, ch)} is entirely enclosed inside this
-     *         <code>Rectangle</code>; <code>false</code> otherwise.
-     */
-    public boolean contains(int cx, int cy, int cw, int ch) {
-        int tw = this.width;
-        int th = this.height;
-        if ((tw | th | cw | ch) < 0) {
-            // At least one of the dimensions is negative...
-            return false;
-        }
-        // Note: if any dimension is zero, tests below must return false...
-        int tx = this.x;
-        int ty = this.y;
-        if (cx < tx || cy < ty) {
-            return false;
-        }
-        tw += tx;
-        cw += cx;
-        if (cw <= cx) {
-            // cx+cw overflowed or cw was zero, return false if...
-            // either original tw or cw was zero or
-            // tx+tw did not overflow or
-            // the overflowed cx+cw is smaller than the overflowed tx+tw
-            if (tw >= tx || cw > tw) {
-                return false;
-            }
-        } else {
-            // cx+cw did not overflow and cw was not zero, return false if...
-            // original tw was zero or
-            // tx+tw did not overflow and tx+tw is smaller than cx+cw
-            if (tw >= tx && cw > tw) {
-                return false;
-            }
-        }
-        th += ty;
-        ch += cy;
-        if (ch <= cy) {
-            if (th >= ty || ch > th) {
-                return false;
-            }
-        } else {
-            if (th >= ty && ch > th) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public Rectangle intersection(Rectangle r) {
-        Rectangle ret = new Rectangle(this);
-        ret.intersectWith(r);
-        return ret;
-    }
-
-    public void intersectWith(Rectangle r) {
-        if (r == null) {
-            return;
-        }
-        int tx1 = this.x;
-        int ty1 = this.y;
-        int rx1 = r.x;
-        int ry1 = r.y;
-        long tx2 = tx1;
-        tx2 += this.width;
-        long ty2 = ty1;
-        ty2 += this.height;
-        long rx2 = rx1;
-        rx2 += r.width;
-        long ry2 = ry1;
-        ry2 += r.height;
-        if (tx1 < rx1) {
-            tx1 = rx1;
-        }
-        if (ty1 < ry1) {
-            ty1 = ry1;
-        }
-        if (tx2 > rx2) {
-            tx2 = rx2;
-        }
-        if (ty2 > ry2) {
-            ty2 = ry2;
-        }
-        tx2 -= tx1;
-        ty2 -= ty1;
-        // tx2,ty2 will never overflow (they will never be
-        // larger than the smallest of the two source w,h)
-        // they might underflow, though...
-        if (tx2 < Integer.MIN_VALUE) {
-            tx2 = Integer.MIN_VALUE;
-        }
-        if (ty2 < Integer.MIN_VALUE) {
-            ty2 = Integer.MIN_VALUE;
-        }
-        setBounds(tx1, ty1, (int) tx2, (int) ty2);
-    }
-
-    /**
-     * Translates this <code>Rectangle</code> the indicated distance, to the
-     * right along the X coordinate axis, and downward along the Y coordinate
-     * axis.
-     *
-     * @param dx
-     *            the distance to move this <code>Rectangle</code> along the X
-     *            axis
-     * @param dy
-     *            the distance to move this <code>Rectangle</code> along the Y
-     *            axis
-     * @see java.awt.Rectangle#setLocation(int, int)
-     * @see java.awt.Rectangle#setLocation(java.awt.Point)
-     */
-    public void translate(int dx, int dy) {
-        int oldv = this.x;
-        int newv = oldv + dx;
-        if (dx < 0) {
-            // moving leftward
-            if (newv > oldv) {
-                // negative overflow
-                // Only adjust width if it was valid (>= 0).
-                if (width >= 0) {
-                    // The right edge is now conceptually at
-                    // newv+width, but we may move newv to prevent
-                    // overflow.  But we want the right edge to
-                    // remain at its new location in spite of the
-                    // clipping.  Think of the following adjustment
-                    // conceptually the same as:
-                    // width += newv; newv = MIN_VALUE; width -= newv;
-                    width += newv - Integer.MIN_VALUE;
-                    // width may go negative if the right edge went past
-                    // MIN_VALUE, but it cannot overflow since it cannot
-                    // have moved more than MIN_VALUE and any non-negative
-                    // number + MIN_VALUE does not overflow.
-                }
-                newv = Integer.MIN_VALUE;
-            }
-        } else {
-            // moving rightward (or staying still)
-            if (newv < oldv) {
-                // positive overflow
-                if (width >= 0) {
-                    // Conceptually the same as:
-                    // width += newv; newv = MAX_VALUE; width -= newv;
-                    width += newv - Integer.MAX_VALUE;
-                    // With large widths and large displacements
-                    // we may overflow so we need to check it.
-                    if (width < 0) {
-                        width = Integer.MAX_VALUE;
-                    }
-                }
-                newv = Integer.MAX_VALUE;
-            }
-        }
-        this.x = newv;
-
-        oldv = this.y;
-        newv = oldv + dy;
-        if (dy < 0) {
-            // moving upward
-            if (newv > oldv) {
-                // negative overflow
-                if (height >= 0) {
-                    height += newv - Integer.MIN_VALUE;
-                    // See above comment about no overflow in this case
-                }
-                newv = Integer.MIN_VALUE;
-            }
-        } else {
-            // moving downward (or staying still)
-            if (newv < oldv) {
-                // positive overflow
-                if (height >= 0) {
-                    height += newv - Integer.MAX_VALUE;
-                    if (height < 0) {
-                        height = Integer.MAX_VALUE;
-                    }
-                }
-                newv = Integer.MAX_VALUE;
-            }
-        }
-        this.y = newv;
-    }
-
-    public RectBounds toRectBounds() {
-        return new RectBounds(x, y, x + width, y + height);
+    public Rectangle(Rectangle r) {
+        this(r.x, r.y, r.width, r.height);
     }
 
     /**
@@ -630,6 +337,135 @@ public class Rectangle {
     }
 
     /**
+     * Checks whether or not this <code>Rectangle</code> contains the point at
+     * the specified location {@code (cx, cy)}.
+     *
+     * @param cx
+     *            the specified X coordinate
+     * @param cy
+     *            the specified Y coordinate
+     * @return <code>true</code> if the point {@code (cx, cy)} is inside this
+     *         <code>Rectangle</code>; <code>false</code> otherwise.
+     */
+    public boolean contains(int cx, int cy) {
+        int tw = this.width;
+        int th = this.height;
+        if ((tw | th) < 0) {
+            // At least one of the dimensions is negative...
+            return false;
+        }
+        // Note: if either dimension is zero, tests below must return false...
+        int tx = this.x;
+        int ty = this.y;
+        if (cx < tx || cy < ty) {
+            return false;
+        }
+        tw += tx;
+        th += ty;
+        //    overflow || intersect
+        return ((tw < tx || tw > cx) && (th < ty || th > cy));
+    }
+
+    /**
+     * Checks whether this <code>Rectangle</code> entirely contains the
+     * <code>Rectangle</code> at the specified location {@code (cx, cy)} with
+     * the specified dimensions {@code (cw, ch)}.
+     *
+     * @param cx
+     *            the specified X coordinate
+     * @param cy
+     *            the specified Y coordinate
+     * @param cw
+     *            the width of the <code>Rectangle</code>
+     * @param ch
+     *            the height of the <code>Rectangle</code>
+     * @return <code>true</code> if the <code>Rectangle</code> specified by
+     *         {@code (cx, cy, cw, ch)} is entirely enclosed inside this
+     *         <code>Rectangle</code>; <code>false</code> otherwise.
+     */
+    public boolean contains(int cx, int cy, int cw, int ch) {
+        int tw = this.width;
+        int th = this.height;
+        if ((tw | th | cw | ch) < 0) {
+            // At least one of the dimensions is negative...
+            return false;
+        }
+        // Note: if any dimension is zero, tests below must return false...
+        int tx = this.x;
+        int ty = this.y;
+        if (cx < tx || cy < ty) {
+            return false;
+        }
+        tw += tx;
+        cw += cx;
+        if (cw <= cx) {
+            // cx+cw overflowed or cw was zero, return false if...
+            // either original tw or cw was zero or
+            // tx+tw did not overflow or
+            // the overflowed cx+cw is smaller than the overflowed tx+tw
+            if (tw >= tx || cw > tw) {
+                return false;
+            }
+        } else {
+            // cx+cw did not overflow and cw was not zero, return false if...
+            // original tw was zero or
+            // tx+tw did not overflow and tx+tw is smaller than cx+cw
+            if (tw >= tx && cw > tw) {
+                return false;
+            }
+        }
+        th += ty;
+        ch += cy;
+        if (ch <= cy) {
+            if (th >= ty || ch > th) {
+                return false;
+            }
+        } else {
+            if (th >= ty && ch > th) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether or not this <code>Rectangle</code> entirely contains the
+     * specified <code>Rectangle</code>.
+     *
+     * @param r
+     *            the specified <code>Rectangle</code>
+     * @return <code>true</code> if the <code>Rectangle</code> is contained
+     *         entirely inside this <code>Rectangle</code>; <code>false</code>
+     *         otherwise
+     */
+    public boolean contains(Rectangle r) {
+        return contains(r.x, r.y, r.width, r.height);
+    }
+
+    /**
+     * Checks whether two rectangles are equal.
+     * <p>
+     * The result is <code>true</code> if and only if the argument is not
+     * <code>null</code> and is a <code>Rectangle</code> object that has the
+     * same upper-left corner, width, and height as this <code>Rectangle</code>.
+     *
+     * @param obj
+     *            the <code>Object</code> to compare with this
+     *            <code>Rectangle</code>
+     * @return <code>true</code> if the objects are equal; <code>false</code>
+     *         otherwise.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Rectangle) {
+            Rectangle r = (Rectangle) obj;
+            return ((x == r.x) && (y == r.y) && (width == r.width)
+                    && (height == r.height));
+        }
+        return super.equals(obj);
+    }
+
+    /**
      * Resizes the <code>Rectangle</code> both horizontally and vertically.
      * <p>
      * This method modifies the <code>Rectangle</code> so that it is
@@ -727,11 +563,61 @@ public class Rectangle {
         reshape((int) x0, (int) y0, (int) x1, (int) y1);
     }
 
-    private void reshape(int x, int y, int width, int height) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
+    @Override
+    public int hashCode() {
+        int bits = Float.floatToIntBits(x);
+        bits += Float.floatToIntBits(y) * 37;
+        bits += Float.floatToIntBits(width) * 43;
+        bits += Float.floatToIntBits(height) * 47;
+        return bits;
+    }
+
+    public Rectangle intersection(Rectangle r) {
+        Rectangle ret = new Rectangle(this);
+        ret.intersectWith(r);
+        return ret;
+    }
+
+    public void intersectWith(Rectangle r) {
+        if (r == null) {
+            return;
+        }
+        int tx1 = this.x;
+        int ty1 = this.y;
+        int rx1 = r.x;
+        int ry1 = r.y;
+        long tx2 = tx1;
+        tx2 += this.width;
+        long ty2 = ty1;
+        ty2 += this.height;
+        long rx2 = rx1;
+        rx2 += r.width;
+        long ry2 = ry1;
+        ry2 += r.height;
+        if (tx1 < rx1) {
+            tx1 = rx1;
+        }
+        if (ty1 < ry1) {
+            ty1 = ry1;
+        }
+        if (tx2 > rx2) {
+            tx2 = rx2;
+        }
+        if (ty2 > ry2) {
+            ty2 = ry2;
+        }
+        tx2 -= tx1;
+        ty2 -= ty1;
+        // tx2,ty2 will never overflow (they will never be
+        // larger than the smallest of the two source w,h)
+        // they might underflow, though...
+        if (tx2 < Integer.MIN_VALUE) {
+            tx2 = Integer.MIN_VALUE;
+        }
+        if (ty2 < Integer.MIN_VALUE) {
+            ty2 = Integer.MIN_VALUE;
+        }
+        setBounds(tx1, ty1, (int) tx2, (int) ty2);
     }
 
     /**
@@ -741,36 +627,58 @@ public class Rectangle {
         return (width <= 0) || (height <= 0);
     }
 
-    /**
-     * Checks whether two rectangles are equal.
-     * <p>
-     * The result is <code>true</code> if and only if the argument is not
-     * <code>null</code> and is a <code>Rectangle</code> object that has the
-     * same upper-left corner, width, and height as this <code>Rectangle</code>.
-     *
-     * @param obj
-     *            the <code>Object</code> to compare with this
-     *            <code>Rectangle</code>
-     * @return <code>true</code> if the objects are equal; <code>false</code>
-     *         otherwise.
-     */
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof Rectangle) {
-            Rectangle r = (Rectangle) obj;
-            return ((x == r.x) && (y == r.y) && (width == r.width)
-                    && (height == r.height));
-        }
-        return super.equals(obj);
+    public void setBounds(BaseBounds b) {
+        x = (int) Math.floor(b.getMinX());
+        y = (int) Math.floor(b.getMinY());
+        int x2 = (int) Math.ceil(b.getMaxX());
+        int y2 = (int) Math.ceil(b.getMaxY());
+        width = x2 - x;
+        height = y2 - y;
     }
 
-    @Override
-    public int hashCode() {
-        int bits = Float.floatToIntBits(x);
-        bits += Float.floatToIntBits(y) * 37;
-        bits += Float.floatToIntBits(width) * 43;
-        bits += Float.floatToIntBits(height) * 47;
-        return bits;
+    /**
+     * Sets the bounding <code>Rectangle</code> of this <code>Rectangle</code>
+     * to the specified <code>x</code>, <code>y</code>, <code>width</code>, and
+     * <code>height</code>.
+     * <p>
+     * This method is included for completeness, to parallel the
+     * <code>setBounds</code> method of <code>Component</code>.
+     *
+     * @param x
+     *            the new X coordinate for the upper-left corner of this
+     *            <code>Rectangle</code>
+     * @param y
+     *            the new Y coordinate for the upper-left corner of this
+     *            <code>Rectangle</code>
+     * @param width
+     *            the new width for this <code>Rectangle</code>
+     * @param height
+     *            the new height for this <code>Rectangle</code>
+     * @see #getBounds
+     * @see java.awt.Component#setBounds(int, int, int, int)
+     */
+    public void setBounds(int x, int y, int width, int height) {
+        reshape(x, y, width, height);
+    }
+
+    /**
+     * Sets the bounding <code>Rectangle</code> of this <code>Rectangle</code>
+     * to match the specified <code>Rectangle</code>.
+     * <p>
+     * This method is included for completeness, to parallel the
+     * <code>setBounds</code> method of <code>Component</code>.
+     *
+     * @param r
+     *            the specified <code>Rectangle</code>
+     * @see #getBounds
+     * @see java.awt.Component#setBounds(java.awt.Rectangle)
+     */
+    public void setBounds(Rectangle r) {
+        setBounds(r.x, r.y, r.width, r.height);
+    }
+
+    public RectBounds toRectBounds() {
+        return new RectBounds(x, y, x + width, y + height);
     }
 
     /**
@@ -784,5 +692,97 @@ public class Rectangle {
     public String toString() {
         return getClass().getName() + "[x=" + x + ",y=" + y + ",width=" + width
                + ",height=" + height + "]";
+    }
+
+    /**
+     * Translates this <code>Rectangle</code> the indicated distance, to the
+     * right along the X coordinate axis, and downward along the Y coordinate
+     * axis.
+     *
+     * @param dx
+     *            the distance to move this <code>Rectangle</code> along the X
+     *            axis
+     * @param dy
+     *            the distance to move this <code>Rectangle</code> along the Y
+     *            axis
+     * @see java.awt.Rectangle#setLocation(int, int)
+     * @see java.awt.Rectangle#setLocation(java.awt.Point)
+     */
+    public void translate(int dx, int dy) {
+        int oldv = this.x;
+        int newv = oldv + dx;
+        if (dx < 0) {
+            // moving leftward
+            if (newv > oldv) {
+                // negative overflow
+                // Only adjust width if it was valid (>= 0).
+                if (width >= 0) {
+                    // The right edge is now conceptually at
+                    // newv+width, but we may move newv to prevent
+                    // overflow.  But we want the right edge to
+                    // remain at its new location in spite of the
+                    // clipping.  Think of the following adjustment
+                    // conceptually the same as:
+                    // width += newv; newv = MIN_VALUE; width -= newv;
+                    width += newv - Integer.MIN_VALUE;
+                    // width may go negative if the right edge went past
+                    // MIN_VALUE, but it cannot overflow since it cannot
+                    // have moved more than MIN_VALUE and any non-negative
+                    // number + MIN_VALUE does not overflow.
+                }
+                newv = Integer.MIN_VALUE;
+            }
+        } else {
+            // moving rightward (or staying still)
+            if (newv < oldv) {
+                // positive overflow
+                if (width >= 0) {
+                    // Conceptually the same as:
+                    // width += newv; newv = MAX_VALUE; width -= newv;
+                    width += newv - Integer.MAX_VALUE;
+                    // With large widths and large displacements
+                    // we may overflow so we need to check it.
+                    if (width < 0) {
+                        width = Integer.MAX_VALUE;
+                    }
+                }
+                newv = Integer.MAX_VALUE;
+            }
+        }
+        this.x = newv;
+
+        oldv = this.y;
+        newv = oldv + dy;
+        if (dy < 0) {
+            // moving upward
+            if (newv > oldv) {
+                // negative overflow
+                if (height >= 0) {
+                    height += newv - Integer.MIN_VALUE;
+                    // See above comment about no overflow in this case
+                }
+                newv = Integer.MIN_VALUE;
+            }
+        } else {
+            // moving downward (or staying still)
+            if (newv < oldv) {
+                // positive overflow
+                if (height >= 0) {
+                    height += newv - Integer.MAX_VALUE;
+                    if (height < 0) {
+                        height = Integer.MAX_VALUE;
+                    }
+                }
+                newv = Integer.MAX_VALUE;
+            }
+        }
+        this.y = newv;
+    }
+
+    private void reshape(int x, int y, int width, int height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
     }
 }

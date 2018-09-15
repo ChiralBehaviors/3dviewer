@@ -38,8 +38,8 @@ package com.javafx.experiments.utils3d.geom;
  * <p>
  */
 public class Dimension2D {
-    public float width;
     public float height;
+    public float width;
 
     public Dimension2D() {
     }
