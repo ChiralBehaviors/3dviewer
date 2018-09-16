@@ -517,8 +517,7 @@ public class ContentModel {
                     // double z = camera.getTranslateZ();
                     // double newZ = z + yFlip*flip*mouseDeltaX*modifierFactor*modifier;
                     double newZ = z - flip * (mouseDeltaX + mouseDeltaY)
-                                      * modifierFactor * modifier;
-                    System.out.println("newZ = " + newZ);
+                                      * modifierFactor * modifier; 
                     cameraPosition.setZ(newZ);
                     // camera.setTranslateZ(newZ);
                 }
